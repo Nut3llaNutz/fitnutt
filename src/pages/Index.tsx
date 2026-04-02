@@ -1,16 +1,150 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { Layout } from "@/components/Layout";
+import { useDailyLog } from "@/hooks/useDailyLog";
+import { useMealEntries } from "@/hooks/useMealEntries";
+import { useSettings } from "@/hooks/useSettings";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const MacroRing = ({ label, current, target, color }: { label: string; current: number; target: number; color: string }) => {
+  const pct = Math.min((current / target) * 100, 100);
+  const circumference = 2 * Math.PI * 36;
+  const dashoffset = circumference - (pct / 100) * circumference;
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-20 h-20">
+        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="36" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
+          <circle
+            cx="40" cy="40" r="36" fill="none"
+            stroke={color}
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashoffset}
+            className="transition-all duration-700"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-semibold text-foreground">{Math.round(current)}</span>
+        </div>
+      </div>
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
     </div>
   );
 };
 
-const Index = PlaceholderIndex;
+const mealTypeLabels: Record<string, string> = {
+  breakfast: "🌅 Breakfast",
+  lunch: "☀️ Lunch",
+  dinner: "🌙 Dinner",
+  snack: "🍿 Snack",
+};
+
+const Index = () => {
+  const { log, isLoading: logLoading, toggleSupplement } = useDailyLog();
+  const { entries, isLoading: entriesLoading } = useMealEntries(log?.id);
+  const { settings, isLoading: settingsLoading } = useSettings();
+
+  const totals = entries.reduce(
+    (acc, entry) => {
+      const food = (entry as any).foods;
+      if (!food) return acc;
+      const mult = entry.quantity * (food.serving_size / 100);
+      return {
+        calories: acc.calories + food.calories * (entry.quantity),
+        protein: acc.protein + food.protein * (entry.quantity),
+        carbs: acc.carbs + food.carbs * (entry.quantity),
+        fats: acc.fats + food.fats * (entry.quantity),
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fats: 0 }
+  );
+
+  const targets = {
+    calories: settings?.calorie_target || 2750,
+    protein: settings?.protein_target || 100,
+    carbs: settings?.carb_target || 400,
+    fats: settings?.fat_target || 70,
+  };
+
+  if (logLoading || settingsLoading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <div className="flex justify-around">
+            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 w-20 rounded-full" />)}
+          </div>
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+
+        {/* Macro Rings */}
+        <div className="flex justify-around">
+          <MacroRing label="Calories" current={totals.calories} target={targets.calories} color="hsl(var(--primary))" />
+          <MacroRing label="Protein" current={totals.protein} target={targets.protein} color="hsl(18, 82%, 41%)" />
+          <MacroRing label="Carbs" current={totals.carbs} target={targets.carbs} color="hsl(220, 13%, 38%)" />
+          <MacroRing label="Fats" current={totals.fats} target={targets.fats} color="hsl(0, 0%, 60%)" />
+        </div>
+
+        {/* Supplement Toggles */}
+        <div className="bg-card rounded-xl p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">Supplements</h2>
+          <div className="flex items-center justify-between">
+            <span className="text-card-foreground">Creatine (5g)</span>
+            <Switch
+              checked={log?.creatine_taken || false}
+              onCheckedChange={() => toggleSupplement.mutate("creatine_taken")}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-card-foreground">Whey Protein</span>
+            <Switch
+              checked={log?.whey_taken || false}
+              onCheckedChange={() => toggleSupplement.mutate("whey_taken")}
+            />
+          </div>
+        </div>
+
+        {/* Daily Timeline */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Today's Meals</h2>
+          {entriesLoading ? (
+            <Skeleton className="h-20 w-full rounded-xl" />
+          ) : entries.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No meals logged yet. Head to the Diary to add some!</p>
+          ) : (
+            Object.entries(
+              entries.reduce((acc: Record<string, typeof entries>, e) => {
+                (acc[e.meal_type] = acc[e.meal_type] || []).push(e);
+                return acc;
+              }, {})
+            ).map(([type, items]) => (
+              <div key={type} className="bg-card rounded-xl p-3">
+                <h3 className="text-xs font-semibold text-card-foreground mb-2">
+                  {mealTypeLabels[type] || type}
+                </h3>
+                {items.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm text-card-foreground">
+                    <span>{(item as any).foods?.name}</span>
+                    <span className="text-muted-foreground">×{item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+};
 
 export default Index;
