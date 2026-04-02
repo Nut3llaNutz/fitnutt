@@ -14,16 +14,192 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_logs: {
+        Row: {
+          created_at: string
+          creatine_taken: boolean
+          date: string
+          id: string
+          updated_at: string
+          user_id: string
+          whey_taken: boolean
+        }
+        Insert: {
+          created_at?: string
+          creatine_taken?: boolean
+          date?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          whey_taken?: boolean
+        }
+        Update: {
+          created_at?: string
+          creatine_taken?: boolean
+          date?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          whey_taken?: boolean
+        }
+        Relationships: []
+      }
+      foods: {
+        Row: {
+          calories: number
+          carbs: number
+          created_at: string
+          fats: number
+          id: string
+          name: string
+          protein: number
+          serving_size: number
+          serving_unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories?: number
+          carbs?: number
+          created_at?: string
+          fats?: number
+          id?: string
+          name: string
+          protein?: number
+          serving_size?: number
+          serving_unit?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories?: number
+          carbs?: number
+          created_at?: string
+          fats?: number
+          id?: string
+          name?: string
+          protein?: number
+          serving_size?: number
+          serving_unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meal_entries: {
+        Row: {
+          created_at: string
+          daily_log_id: string
+          food_id: string
+          id: string
+          meal_type: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          daily_log_id: string
+          food_id: string
+          id?: string
+          meal_type: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          daily_log_id?: string
+          food_id?: string
+          id?: string
+          meal_type?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_entries_daily_log_id_fkey"
+            columns: ["daily_log_id"]
+            isOneToOne: false
+            referencedRelation: "daily_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_entries_food_id_fkey"
+            columns: ["food_id"]
+            isOneToOne: false
+            referencedRelation: "foods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          calorie_target: number
+          carb_target: number
+          created_at: string
+          fat_target: number
+          id: string
+          notification_time: string
+          protein_target: number
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calorie_target?: number
+          carb_target?: number
+          created_at?: string
+          fat_target?: number
+          id?: string
+          notification_time?: string
+          protein_target?: number
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calorie_target?: number
+          carb_target?: number
+          created_at?: string
+          fat_target?: number
+          id?: string
+          notification_time?: string
+          protein_target?: number
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +326,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
