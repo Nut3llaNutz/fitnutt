@@ -41,9 +41,8 @@ export const usePushSubscription = () => {
       setPermission(perm);
       if (perm !== "granted") return false;
 
-      // Register push SW
-      const reg = await navigator.serviceWorker.register("/sw-push.js");
-      await navigator.serviceWorker.ready;
+      // Rely on the primary Vite PWA service worker which now perfectly includes our push logic
+      const reg = await navigator.serviceWorker.ready;
 
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,

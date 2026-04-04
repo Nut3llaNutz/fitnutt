@@ -15,21 +15,33 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const now = new Date();
   
-  // Fetch users + their push subscriptions in one query
-  const { data: users, error } = await supabase
+  // Fetch users and their push subscriptions safely since they both rely on auth.users rather than each other
+  const { data: users, error: userError } = await supabase
     .from('user_settings')
-    .select('user_id, notification_time, supplements, timezone, push_subscriptions(endpoint, p256dh, auth)');
+    .select('user_id, notification_time, supplements, timezone');
+
+  const { data: subs, error: subError } = await supabase
+    .from('push_subscriptions')
+    .select('user_id, endpoint, p256dh, auth');
     
-  if (error || !users) {
-    console.error(error);
-    return new Response(JSON.stringify({ error: 'DB Fetch Failed' }), { status: 500 });
+  if (userError || subError || !users) {
+    console.error(userError || subError);
+    return new Response(JSON.stringify({ error: 'DB Fetch Failed', details: userError || subError }), { status: 500 });
   }
+
+  // Group subscriptions by user lookup map
+  const subMap = (subs || []).reduce((acc: any, sub: any) => {
+    if (!acc[sub.user_id]) acc[sub.user_id] = [];
+    acc[sub.user_id].push(sub);
+    return acc;
+  }, {});
 
   let sentCount = 0;
 
   for (const user of users) {
+    const userSubs = subMap[user.user_id] || [];
     // Basic validation
-    if (!user.push_subscriptions || user.push_subscriptions.length === 0) continue;
+    if (userSubs.length === 0) continue;
     if (!user.notification_time || !user.supplements) continue;
 
     try {
@@ -78,7 +90,7 @@ serve(async (req) => {
       });
 
       // Send to all their registered devices
-      for (const sub of user.push_subscriptions) {
+      for (const sub of userSubs) {
         try {
           await webpush.sendNotification({
             endpoint: sub.endpoint,

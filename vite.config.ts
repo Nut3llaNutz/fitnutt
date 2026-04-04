@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        importScripts: ["/sw-push.js"],
         navigateFallbackDenylist: [/^\/~oauth/],
         // Never serve Supabase API calls from cache — required for auth token refresh to work reliably
         runtimeCaching: [
