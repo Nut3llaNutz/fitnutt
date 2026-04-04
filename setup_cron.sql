@@ -23,9 +23,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 4. Schedule the cron job to run exactly on the hour, every hour
+-- 4. Remove any old hourly schedule first (safe to run even if it doesn't exist)
+SELECT cron.unschedule('send-supplement-reminders-hourly');
+
+-- 5. Schedule the cron job to run every 15 minutes
 SELECT cron.schedule(
-    'send-supplement-reminders-hourly',
-    '0 * * * *', 
+    'send-supplement-reminders-15min',
+    '*/15 * * * *', 
     'SELECT invoke_send_reminders()'
 );

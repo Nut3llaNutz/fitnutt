@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Layout } from "@/components/Layout";
+import { TutorialFlow } from "@/components/TutorialFlow";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
 import { useSettings, Supplement } from "@/hooks/useSettings";
@@ -43,6 +44,13 @@ const Index = () => {
   const { log, isLoading: logLoading, toggleCustomSupplement } = useDailyLog();
   const { entries, isLoading: entriesLoading } = useMealEntries(log?.id);
   const { settings, isLoading: settingsLoading } = useSettings();
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    if (!settingsLoading && settings && settings.tutorial_completed !== true) {
+      setShowTutorial(true);
+    }
+  }, [settings, settingsLoading]);
 
   // Get the enabled supplements list and today's taken status
   const enabledSupplements = ((settings?.supplements as unknown as Supplement[]) || []).filter((s) => s.enabled);
@@ -88,11 +96,12 @@ const Index = () => {
 
   return (
     <Layout>
+      {showTutorial && <TutorialFlow onComplete={() => setShowTutorial(false)} />}
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
 
         {/* Macro Rings */}
-        <div className="flex justify-around">
+        <div className="flex justify-around" data-tour="macro-rings">
           <MacroRing label="Calories" current={totals.calories} target={targets.calories} color="hsl(var(--primary))" />
           <MacroRing label="Protein" current={totals.protein} target={targets.protein} color="hsl(18, 82%, 41%)" />
           <MacroRing label="Carbs" current={totals.carbs} target={targets.carbs} color="hsl(220, 13%, 38%)" />

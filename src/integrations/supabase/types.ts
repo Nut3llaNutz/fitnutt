@@ -185,6 +185,8 @@ export type Database = {
           id: string
           notification_time: string
           protein_target: number
+          nut3lla_tips_enabled: boolean | null
+          tutorial_completed: boolean | null
           supplements: Json | null
           theme: string
           updated_at: string
@@ -198,6 +200,8 @@ export type Database = {
           id?: string
           notification_time?: string
           protein_target?: number
+          nut3lla_tips_enabled?: boolean | null
+          tutorial_completed?: boolean | null
           supplements?: Json | null
           theme?: string
           updated_at?: string
@@ -211,6 +215,8 @@ export type Database = {
           id?: string
           notification_time?: string
           protein_target?: number
+          nut3lla_tips_enabled?: boolean | null
+          tutorial_completed?: boolean | null
           supplements?: Json | null
           theme?: string
           updated_at?: string

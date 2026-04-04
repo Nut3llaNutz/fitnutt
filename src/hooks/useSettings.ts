@@ -36,6 +36,8 @@ export const useSettings = () => {
       theme?: string;
       supplements?: Supplement[];
       timezone?: string;
+      nut3lla_tips_enabled?: boolean;
+      tutorial_completed?: boolean;
     }) => {
       const { error } = await supabase
         .from("user_settings")

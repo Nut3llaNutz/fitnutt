@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import webpush from "npm:web-push@3.6.7";
@@ -47,19 +48,17 @@ serve(async (req) => {
     try {
       const userTz = user.timezone || 'UTC';
       
-      const formatter = new Intl.DateTimeFormat('en-GB', {
-        timeZone: userTz,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      const userLocalTime = formatter.format(now); // e.g., "20:30"
-      
-      const userSetHour = user.notification_time.split(':')[0];
-      const userLocalHour = userLocalTime.split(':')[0];
-      
-      // We only execute push notifications when the hour matches exactly.
-      if (userSetHour !== userLocalHour) continue;
+      // Get the current time in the user's local timezone
+      const nowInUserTz = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
+      const currentHour = nowInUserTz.getHours();
+      const currentSlot = Math.floor(nowInUserTz.getMinutes() / 15) * 15; // 0, 15, 30, or 45
+
+      // Get the user's set time
+      const [userHour, userMin] = user.notification_time.split(':').map(Number);
+      const userSlot = Math.floor(userMin / 15) * 15; // round their minutes down to nearest slot
+
+      // Fire only when both hour AND 15-min slot match
+      if (userHour !== currentHour || userSlot !== currentSlot) continue;
 
       // Find the start date of today in the user's timezone to query daily_logs properly
       const startOfDay = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
@@ -85,8 +84,8 @@ serve(async (req) => {
       const names = untaken.map(s => s.name).join(", ");
       
       const payload = JSON.stringify({
-        title: "FitNutt Reminder 💊",
-        body: `Don't forget: ${names}`
+        title: "Don't forget: " + names,
+        body: ""
       });
 
       // Send to all their registered devices

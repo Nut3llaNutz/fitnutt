@@ -10,10 +10,9 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading, setIsAuthenticating } = useAuth();
   const navigate = useNavigate();
 
   // Redirect to dashboard if already logged in
@@ -23,7 +22,7 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsAuthenticating(true);
 
     if (resetMode) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -35,7 +34,7 @@ const Auth = () => {
         toast({ title: "Check your email", description: "Password reset link sent!" });
         setResetMode(false);
       }
-      setLoading(false);
+      setIsAuthenticating(false);
       return;
     }
 
@@ -57,11 +56,11 @@ const Auth = () => {
         toast({ title: "Account created!", description: "Check your email to confirm." });
       }
     }
-    setLoading(false);
+    setIsAuthenticating(false);
   };
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    setIsAuthenticating(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -70,7 +69,7 @@ const Auth = () => {
     });
     if (error) {
       toast({ title: "Google login failed", description: error.message, variant: "destructive" });
-      setLoading(false);
+      setIsAuthenticating(false);
     }
   };
 
