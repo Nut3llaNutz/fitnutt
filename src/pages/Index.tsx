@@ -48,45 +48,8 @@ const Index = () => {
   const enabledSupplements = ((settings?.supplements as unknown as Supplement[]) || []).filter((s) => s.enabled);
   const supplementsTaken = ((log as any)?.supplements_taken as Record<string, boolean>) || {};
 
-  // Client-side notification scheduling for supplement reminders
-  const notifScheduledRef = useRef(false);
-  useEffect(() => {
-    if (!settings?.notification_time || Notification.permission !== "granted" || enabledSupplements.length === 0) return;
-    if (notifScheduledRef.current) return;
+  // Push Notifications: Handled completely by Supabase Edge Functions pg_cron tasks now.
 
-    const [h, m] = settings.notification_time.split(":").map(Number);
-    const now = new Date();
-    const target = new Date();
-    target.setHours(h, m, 0, 0);
-    if (target <= now) target.setDate(target.getDate() + 1); // schedule for tomorrow if already past
-
-    const msUntil = target.getTime() - now.getTime();
-    notifScheduledRef.current = true;
-
-    const fireNotification = () => {
-      const untaken = enabledSupplements.filter((s) => !supplementsTaken[s.id]);
-      if (untaken.length === 0) return;
-      const names = untaken.map((s) => s.name).join(", ");
-      new Notification("FitNutt — Supplement Reminder 💊", {
-        body: `Don't forget: ${names}`,
-        icon: "/fitnutt-logo.png",
-      });
-    };
-
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-    const timeoutId = setTimeout(() => {
-      fireNotification();
-      // Hourly follow-ups
-      intervalId = setInterval(fireNotification, 60 * 60 * 1000);
-    }, msUntil);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (intervalId) clearInterval(intervalId);
-      notifScheduledRef.current = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.notification_time, settings?.supplements]);
 
   const totals = entries.reduce(
     (acc, entry) => {
@@ -148,7 +111,7 @@ const Index = () => {
                   className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ease-out ${
                     supplementsTaken[s.id]
                       ? "bg-primary border-primary text-primary-foreground scale-110"
-                      : "bg-transparent border-input text-transparent scale-100"
+                      : "bg-muted/30 border-muted-foreground text-transparent scale-100"
                   }`}
                 >
                   <Check strokeWidth={3.5} className={`h-4 w-4 transition-transform duration-300 ${supplementsTaken[s.id] ? "scale-100" : "scale-0"}`} />

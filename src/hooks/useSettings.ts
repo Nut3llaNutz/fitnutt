@@ -35,6 +35,7 @@ export const useSettings = () => {
       notification_time?: string;
       theme?: string;
       supplements?: Supplement[];
+      timezone?: string;
     }) => {
       const { error } = await supabase
         .from("user_settings")

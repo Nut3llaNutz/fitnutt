@@ -43,7 +43,10 @@ const Profile = () => {
   }, [settings]);
 
   const handleSave = () => {
-    updateSettings.mutate(form, {
+    updateSettings.mutate({
+        ...form,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone 
+    }, {
       onSuccess: () => toast({ title: "Settings saved!" }),
     });
   };

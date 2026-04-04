@@ -8,15 +8,15 @@ import { Trash2, Pencil, Plus } from "lucide-react";
 
 interface FoodForm {
   name: string;
-  serving_size: number;
+  serving_size: number | "";
   serving_unit: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
+  calories: number | "";
+  protein: number | "";
+  carbs: number | "";
+  fats: number | "";
 }
 
-const defaultForm: FoodForm = { name: "", serving_size: 100, serving_unit: "g", calories: 0, protein: 0, carbs: 0, fats: 0 };
+const defaultForm: FoodForm = { name: "", serving_size: 100, serving_unit: "g", calories: "", protein: "", carbs: "", fats: "" };
 
 const FoodLibrary = () => {
   const { foods, addFood, updateFood, deleteFood } = useFoods();
@@ -34,8 +34,17 @@ const FoodLibrary = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) updateFood.mutate({ id: editId, ...form });
-    else addFood.mutate(form);
+    const payload = {
+      name: form.name,
+      serving_size: Number(form.serving_size) || 0,
+      serving_unit: form.serving_unit,
+      calories: Number(form.calories) || 0,
+      protein: Number(form.protein) || 0,
+      carbs: Number(form.carbs) || 0,
+      fats: Number(form.fats) || 0,
+    };
+    if (editId) updateFood.mutate({ id: editId, ...payload });
+    else addFood.mutate(payload);
     setShowForm(false);
   };
 
@@ -105,7 +114,7 @@ const FoodLibrary = () => {
                     type="number"
                     placeholder="Amount (e.g. 100)"
                     value={form.serving_size}
-                    onChange={(e) => setForm({ ...form, serving_size: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setForm({ ...form, serving_size: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })}
                   />
                   <Input
                     placeholder="Unit (g, ml, scoop, piece...)"
@@ -122,19 +131,19 @@ const FoodLibrary = () => {
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <div>
                     <label className="text-[10px] text-muted-foreground">Calories (kcal)</label>
-                    <Input type="number" value={form.calories} onChange={(e) => setForm({ ...form, calories: parseFloat(e.target.value) || 0 })} />
+                    <Input type="number" placeholder="0" value={form.calories} onChange={(e) => setForm({ ...form, calories: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="text-[10px] text-muted-foreground">Protein (g)</label>
-                    <Input type="number" value={form.protein} onChange={(e) => setForm({ ...form, protein: parseFloat(e.target.value) || 0 })} />
+                    <Input type="number" placeholder="0" value={form.protein} onChange={(e) => setForm({ ...form, protein: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="text-[10px] text-muted-foreground">Carbs (g)</label>
-                    <Input type="number" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: parseFloat(e.target.value) || 0 })} />
+                    <Input type="number" placeholder="0" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="text-[10px] text-muted-foreground">Fats (g)</label>
-                    <Input type="number" value={form.fats} onChange={(e) => setForm({ ...form, fats: parseFloat(e.target.value) || 0 })} />
+                    <Input type="number" placeholder="0" value={form.fats} onChange={(e) => setForm({ ...form, fats: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })} />
                   </div>
                 </div>
               </div>
