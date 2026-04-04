@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
-import { useSettings } from "@/hooks/useSettings";
+import { useSettings, Supplement } from "@/hooks/useSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut, Bell } from "lucide-react";
+import { LogOut, Bell, Plus, X } from "lucide-react";
 
 const Profile = () => {
   const { settings, isLoading, updateSettings } = useSettings();
@@ -26,6 +26,9 @@ const Profile = () => {
     notification_time: "20:30",
   });
 
+  const [supplements, setSupplements] = useState<Supplement[]>([]);
+  const [newSupplementName, setNewSupplementName] = useState("");
+
   useEffect(() => {
     if (settings) {
       setForm({
@@ -35,6 +38,7 @@ const Profile = () => {
         fat_target: settings.fat_target,
         notification_time: settings.notification_time,
       });
+      setSupplements((settings.supplements as Supplement[]) || []);
     }
   }, [settings]);
 
@@ -48,6 +52,30 @@ const Profile = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     updateSettings.mutate({ theme: newTheme });
+  };
+
+  const saveSupplements = (list: Supplement[]) => {
+    setSupplements(list);
+    updateSettings.mutate({ supplements: list });
+  };
+
+  const handleAddSupplement = () => {
+    if (!newSupplementName.trim()) return;
+    const newItem: Supplement = {
+      id: crypto.randomUUID(),
+      name: newSupplementName.trim(),
+      enabled: true,
+    };
+    saveSupplements([...supplements, newItem]);
+    setNewSupplementName("");
+  };
+
+  const toggleSupplementEnabled = (id: string) => {
+    saveSupplements(supplements.map((s) => s.id === id ? { ...s, enabled: !s.enabled } : s));
+  };
+
+  const deleteSupplementItem = (id: string) => {
+    saveSupplements(supplements.filter((s) => s.id !== id));
   };
 
   if (isLoading) {
@@ -65,6 +93,7 @@ const Profile = () => {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
 
+        {/* Account */}
         <div className="bg-card rounded-xl p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Signed in as</p>
           <p className="text-card-foreground font-medium">{user?.email}</p>
@@ -82,44 +111,68 @@ const Profile = () => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground">Calories</label>
-              <Input
-                type="number"
-                value={form.calorie_target}
-                onChange={(e) => setForm({ ...form, calorie_target: parseFloat(e.target.value) || 0 })}
-              />
+              <Input type="number" value={form.calorie_target} onChange={(e) => setForm({ ...form, calorie_target: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Protein (g)</label>
-              <Input
-                type="number"
-                value={form.protein_target}
-                onChange={(e) => setForm({ ...form, protein_target: parseFloat(e.target.value) || 0 })}
-              />
+              <Input type="number" value={form.protein_target} onChange={(e) => setForm({ ...form, protein_target: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Carbs (g)</label>
-              <Input
-                type="number"
-                value={form.carb_target}
-                onChange={(e) => setForm({ ...form, carb_target: parseFloat(e.target.value) || 0 })}
-              />
+              <Input type="number" value={form.carb_target} onChange={(e) => setForm({ ...form, carb_target: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Fats (g)</label>
-              <Input
-                type="number"
-                value={form.fat_target}
-                onChange={(e) => setForm({ ...form, fat_target: parseFloat(e.target.value) || 0 })}
-              />
+              <Input type="number" value={form.fat_target} onChange={(e) => setForm({ ...form, fat_target: parseFloat(e.target.value) || 0 })} />
             </div>
           </div>
         </div>
 
-        {/* Notification Time & Push */}
+        {/* Supplements Management */}
+        <div className="bg-card rounded-xl p-4 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">My Supplements</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Toggle on to show on dashboard for daily tracking.</p>
+          </div>
+
+          {supplements.length > 0 && (
+            <div className="space-y-2">
+              {supplements.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 py-1">
+                  <span className="text-card-foreground text-sm flex-1">{s.name}</span>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={s.enabled} onCheckedChange={() => toggleSupplementEnabled(s.id)} />
+                    <button
+                      onClick={() => deleteSupplementItem(s.id)}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <Input
+              placeholder="e.g. Creatine 5g, Whey Protein..."
+              value={newSupplementName}
+              onChange={(e) => setNewSupplementName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddSupplement()}
+              className="flex-1 h-9 text-sm"
+            />
+            <Button size="sm" onClick={handleAddSupplement} disabled={!newSupplementName.trim()}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Supplement Reminder */}
         <div className="bg-card rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">Supplement Reminder</h2>
           <div>
-            <label className="text-xs text-muted-foreground">Reminder Time (UTC)</label>
+            <label className="text-xs text-muted-foreground">Reminder Time (local time)</label>
             <Input
               type="time"
               value={form.notification_time}

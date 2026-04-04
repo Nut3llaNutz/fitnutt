@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface Supplement {
+  id: string;
+  name: string;
+  enabled: boolean; // true = appears on dashboard for daily tracking
+}
+
 export const useSettings = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -28,10 +34,11 @@ export const useSettings = () => {
       fat_target?: number;
       notification_time?: string;
       theme?: string;
+      supplements?: Supplement[];
     }) => {
       const { error } = await supabase
         .from("user_settings")
-        .update(updates)
+        .update(updates as any)
         .eq("user_id", user!.id);
       if (error) throw error;
     },

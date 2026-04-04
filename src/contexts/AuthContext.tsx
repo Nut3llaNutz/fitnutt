@@ -23,13 +23,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setLoading(false);
-      }
-    );
+    // Subscribe to auth state changes first so we don't miss any events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
+    // Then get the initial session — this is the authoritative first load
+    // Setting loading=false only here avoids a race condition where
+    // onAuthStateChange fires INITIAL_SESSION(null) before the real session resolves
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);

@@ -1,28 +1,24 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    hmr: {
-      overlay: false,
-    },
+    hmr: { overlay: false },
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
       devOptions: { enabled: false },
       includeAssets: ["fitnutt-logo.png"],
       manifest: {
-        name: "FitNutt — Lean Bulking Tracker",
+        name: "FitNutt — Fitness Tracker",
         short_name: "FitNutt",
-        description: "Track macros, meals & supplements for your lean bulk",
+        description: "Track your macros, meals and supplements for a successful cut or bulk. Mobile-first PWA built for gains.",
         theme_color: "#EA5C1F",
         background_color: "#F5F5F5",
         display: "standalone",
@@ -34,13 +30,25 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
+        // Never serve Supabase API calls from cache — required for auth token refresh to work reliably
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) => url.hostname.includes("supabase.co"),
+            handler: "NetworkOnly",
+          },
+        ],
       },
     }),
-  ].filter(Boolean),
+  ],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
+    alias: { "@": path.resolve(__dirname, "./src") },
+    dedupe: [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "@tanstack/react-query",
+      "@tanstack/query-core",
+    ],
   },
 }));

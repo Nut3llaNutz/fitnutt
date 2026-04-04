@@ -36,17 +36,33 @@ export const useDailyLog = (date?: string) => {
     return data;
   };
 
+  // Legacy toggle for creatine_taken / whey_taken (kept for backward compat)
   const toggleSupplement = useMutation({
     mutationFn: async (field: "creatine_taken" | "whey_taken") => {
       const log = await ensureLog();
       const { error } = await supabase
         .from("daily_logs")
-        .update({ [field]: !log[field] })
+        .update({ [field]: !(log as any)[field] })
         .eq("id", log.id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["daily_log", d] }),
   });
 
-  return { log: logQuery.data, isLoading: logQuery.isLoading, toggleSupplement, ensureLog };
+  // Toggle a custom supplement by its ID in the supplements_taken JSONB
+  const toggleCustomSupplement = useMutation({
+    mutationFn: async (supplementId: string) => {
+      const log = await ensureLog();
+      const taken = ((log as any).supplements_taken as Record<string, boolean>) || {};
+      const newTaken = { ...taken, [supplementId]: !taken[supplementId] };
+      const { error } = await supabase
+        .from("daily_logs")
+        .update({ supplements_taken: newTaken } as any)
+        .eq("id", log.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["daily_log", d] }),
+  });
+
+  return { log: logQuery.data, isLoading: logQuery.isLoading, toggleSupplement, toggleCustomSupplement, ensureLog };
 };

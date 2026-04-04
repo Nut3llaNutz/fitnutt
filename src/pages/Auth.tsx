@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +13,13 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) navigate("/", { replace: true });
+  }, [user, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +44,7 @@ const Auth = () => {
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       }
+      // On success, the useEffect above handles the redirect via user state change
     } else {
       const { error } = await supabase.auth.signUp({
         email,

@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { useFoods } from "@/hooks/useFoods";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Trash2, Pencil, Plus } from "lucide-react";
 
 interface FoodForm {
@@ -34,11 +34,8 @@ const FoodLibrary = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) {
-      updateFood.mutate({ id: editId, ...form });
-    } else {
-      addFood.mutate(form);
-    }
+    if (editId) updateFood.mutate({ id: editId, ...form });
+    else addFood.mutate(form);
     setShowForm(false);
   };
 
@@ -50,7 +47,7 @@ const FoodLibrary = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">Food Library</h1>
           <Button size="sm" onClick={openAdd}>
-            <Plus className="h-4 w-4 mr-1" /> Add
+            <Plus className="h-4 w-4 mr-1" /> Add Food
           </Button>
         </div>
 
@@ -62,7 +59,8 @@ const FoodLibrary = () => {
               <div>
                 <div className="font-medium text-card-foreground">{f.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {f.calories} kcal · {f.protein}g P · {f.carbs}g C · {f.fats}g F per {f.serving_size}{f.serving_unit}
+                  {f.calories} kcal · {f.protein}g protein · {f.carbs}g carbs · {f.fats}g fats
+                  <span className="ml-1">per {f.serving_size}{f.serving_unit}</span>
                 </div>
               </div>
               <div className="flex gap-1">
@@ -76,30 +74,72 @@ const FoodLibrary = () => {
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">No foods yet. Tap + to add your first food!</p>
+            <p className="text-muted-foreground text-center py-8">No foods yet. Tap + Add Food to get started!</p>
           )}
         </div>
 
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editId ? "Edit Food" : "Add Food"}</DialogTitle>
+              <DialogTitle>{editId ? "Edit Food Item" : "Add New Food Item"}</DialogTitle>
+              <DialogDescription>
+                Enter the nutritional info per serving. All macro values are per one serving.
+              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <Input placeholder="Food name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              <div className="grid grid-cols-2 gap-2">
-                <Input type="number" placeholder="Serving size" value={form.serving_size} onChange={(e) => setForm({ ...form, serving_size: parseFloat(e.target.value) || 0 })} />
-                <Input placeholder="Unit (g, ml, scoop)" value={form.serving_unit} onChange={(e) => setForm({ ...form, serving_unit: e.target.value })} />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Food Name</label>
+                <Input
+                  placeholder="e.g. Oats, Chicken Breast, Whey Protein..."
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  className="mt-1"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input type="number" placeholder="Calories" value={form.calories} onChange={(e) => setForm({ ...form, calories: parseFloat(e.target.value) || 0 })} />
-                <Input type="number" placeholder="Protein (g)" value={form.protein} onChange={(e) => setForm({ ...form, protein: parseFloat(e.target.value) || 0 })} />
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Serving Size</label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <Input
+                    type="number"
+                    placeholder="Amount (e.g. 100)"
+                    value={form.serving_size}
+                    onChange={(e) => setForm({ ...form, serving_size: parseFloat(e.target.value) || 0 })}
+                  />
+                  <Input
+                    placeholder="Unit (g, ml, scoop, piece...)"
+                    value={form.serving_unit}
+                    onChange={(e) => setForm({ ...form, serving_unit: e.target.value })}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input type="number" placeholder="Carbs (g)" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: parseFloat(e.target.value) || 0 })} />
-                <Input type="number" placeholder="Fats (g)" value={form.fats} onChange={(e) => setForm({ ...form, fats: parseFloat(e.target.value) || 0 })} />
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Macros per serving
+                </label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">Calories (kcal)</label>
+                    <Input type="number" value={form.calories} onChange={(e) => setForm({ ...form, calories: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">Protein (g)</label>
+                    <Input type="number" value={form.protein} onChange={(e) => setForm({ ...form, protein: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">Carbs (g)</label>
+                    <Input type="number" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground">Fats (g)</label>
+                    <Input type="number" value={form.fats} onChange={(e) => setForm({ ...form, fats: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                </div>
               </div>
-              <Button type="submit" className="w-full">{editId ? "Save" : "Add Food"}</Button>
+
+              <Button type="submit" className="w-full">{editId ? "Save Changes" : "Add to Library"}</Button>
             </form>
           </DialogContent>
         </Dialog>
