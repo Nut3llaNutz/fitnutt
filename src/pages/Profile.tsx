@@ -175,6 +175,8 @@ const Profile = () => {
             <label className="text-xs text-muted-foreground">Reminder Time (local time)</label>
             <Input
               type="time"
+              className="mt-1 w-full flex-1"
+              style={{ WebkitAppearance: 'none' }}
               value={form.notification_time}
               onChange={(e) => setForm({ ...form, notification_time: e.target.value })}
             />

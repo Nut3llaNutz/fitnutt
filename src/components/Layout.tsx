@@ -28,12 +28,12 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 pb-20 px-4 pt-4 max-w-lg mx-auto w-full">
+      <main className="flex-1 px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] max-w-lg mx-auto w-full">
         {children}
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-t border-border">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-t border-border pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-lg mx-auto flex justify-around py-2">
           {navItems.map(({ path, icon: Icon, label }) => {
             const active = location.pathname === path;

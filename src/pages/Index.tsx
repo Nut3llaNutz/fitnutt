@@ -3,8 +3,8 @@ import { Layout } from "@/components/Layout";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
 import { useSettings, Supplement } from "@/hooks/useSettings";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Check } from "lucide-react";
 
 const MacroRing = ({ label, current, target, color }: { label: string; current: number; target: number; color: string }) => {
   const pct = Math.min((current / target) * 100, 100);
@@ -143,10 +143,16 @@ const Index = () => {
             {enabledSupplements.map((s) => (
               <div key={s.id} className="flex items-center justify-between">
                 <span className="text-card-foreground">{s.name}</span>
-                <Switch
-                  checked={supplementsTaken[s.id] || false}
-                  onCheckedChange={() => toggleCustomSupplement.mutate(s.id)}
-                />
+                <button
+                  onClick={() => toggleCustomSupplement.mutate(s.id)}
+                  className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ease-out ${
+                    supplementsTaken[s.id]
+                      ? "bg-primary border-primary text-primary-foreground scale-110"
+                      : "bg-transparent border-input text-transparent scale-100"
+                  }`}
+                >
+                  <Check strokeWidth={3.5} className={`h-4 w-4 transition-transform duration-300 ${supplementsTaken[s.id] ? "scale-100" : "scale-0"}`} />
+                </button>
               </div>
             ))}
           </div>
