@@ -15,6 +15,7 @@ const Profile = () => {
   const { settings, isLoading, updateSettings } = useSettings();
   const { signOut, user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { isSubscribed, isSupported, permission, subscribe, unsubscribe } = usePushSubscription();
   const { toast } = useToast();
 
   const [form, setForm] = useState({
