@@ -3,12 +3,13 @@ import { Layout } from "@/components/Layout";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut } from "lucide-react";
+import { LogOut, Bell } from "lucide-react";
 
 const Profile = () => {
   const { settings, isLoading, updateSettings } = useSettings();
