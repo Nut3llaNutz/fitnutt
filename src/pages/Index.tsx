@@ -45,7 +45,7 @@ const Index = () => {
   const { settings, isLoading: settingsLoading } = useSettings();
 
   // Get the enabled supplements list and today's taken status
-  const enabledSupplements = ((settings?.supplements as Supplement[]) || []).filter((s) => s.enabled);
+  const enabledSupplements = ((settings?.supplements as unknown as Supplement[]) || []).filter((s) => s.enabled);
   const supplementsTaken = ((log as any)?.supplements_taken as Record<string, boolean>) || {};
 
   // Client-side notification scheduling for supplement reminders

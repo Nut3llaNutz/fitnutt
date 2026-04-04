@@ -38,7 +38,7 @@ const Profile = () => {
         fat_target: settings.fat_target,
         notification_time: settings.notification_time,
       });
-      setSupplements((settings.supplements as Supplement[]) || []);
+      setSupplements((settings.supplements as unknown as Supplement[]) || []);
     }
   }, [settings]);
 

@@ -20,6 +20,7 @@ export type Database = {
           creatine_taken: boolean
           date: string
           id: string
+          supplements_taken: Json | null
           updated_at: string
           user_id: string
           whey_taken: boolean
@@ -29,6 +30,7 @@ export type Database = {
           creatine_taken?: boolean
           date?: string
           id?: string
+          supplements_taken?: Json | null
           updated_at?: string
           user_id: string
           whey_taken?: boolean
@@ -38,6 +40,7 @@ export type Database = {
           creatine_taken?: boolean
           date?: string
           id?: string
+          supplements_taken?: Json | null
           updated_at?: string
           user_id?: string
           whey_taken?: boolean
@@ -182,6 +185,7 @@ export type Database = {
           id: string
           notification_time: string
           protein_target: number
+          supplements: Json | null
           theme: string
           updated_at: string
           user_id: string
@@ -194,6 +198,7 @@ export type Database = {
           id?: string
           notification_time?: string
           protein_target?: number
+          supplements?: Json | null
           theme?: string
           updated_at?: string
           user_id: string
@@ -206,6 +211,7 @@ export type Database = {
           id?: string
           notification_time?: string
           protein_target?: number
+          supplements?: Json | null
           theme?: string
           updated_at?: string
           user_id?: string
