@@ -3,17 +3,19 @@ import { Layout } from "@/components/Layout";
 import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut } from "lucide-react";
+import { LogOut, Bell } from "lucide-react";
 
 const Profile = () => {
   const { settings, isLoading, updateSettings } = useSettings();
   const { signOut, user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { isSubscribed, isSupported, permission, subscribe, unsubscribe } = usePushSubscription();
   const { toast } = useToast();
 
   const [form, setForm] = useState({
@@ -113,14 +115,38 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Notification Time */}
-        <div className="bg-card rounded-xl p-4 space-y-2">
+        {/* Notification Time & Push */}
+        <div className="bg-card rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">Supplement Reminder</h2>
-          <Input
-            type="time"
-            value={form.notification_time}
-            onChange={(e) => setForm({ ...form, notification_time: e.target.value })}
-          />
+          <div>
+            <label className="text-xs text-muted-foreground">Reminder Time (UTC)</label>
+            <Input
+              type="time"
+              value={form.notification_time}
+              onChange={(e) => setForm({ ...form, notification_time: e.target.value })}
+            />
+          </div>
+          {isSupported && (
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <span className="text-card-foreground text-sm">Push Notifications</span>
+              </div>
+              <Switch
+                checked={isSubscribed}
+                onCheckedChange={async (checked) => {
+                  if (checked) {
+                    const ok = await subscribe();
+                    if (ok) toast({ title: "Notifications enabled! 🔔" });
+                    else if (permission === "denied") toast({ title: "Notifications blocked", description: "Enable them in your browser settings.", variant: "destructive" });
+                  } else {
+                    await unsubscribe();
+                    toast({ title: "Notifications disabled" });
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <Button onClick={handleSave} className="w-full">Save Settings</Button>
