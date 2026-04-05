@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { TutorialProvider } from "@/contexts/TutorialContext";
 import Index from "./pages/Index";
 import DailyDiary from "./pages/DailyDiary";
 import FoodLibrary from "./pages/FoodLibrary";
@@ -14,6 +15,7 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import BarcodeScanner from "./pages/BarcodeScanner";
+import PumpRank from "./pages/PumpRank";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -85,59 +87,69 @@ const App = () => (
           <Sonner />
           <GlobalSplash>
             <BrowserRouter>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/log"
-                  element={
-                    <ProtectedRoute>
-                      <DailyDiary />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/foods"
-                  element={
-                    <ProtectedRoute>
-                      <FoodLibrary />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/schedule"
-                  element={
-                    <ProtectedRoute>
-                      <Schedule />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/scan"
-                  element={
-                    <ProtectedRoute>
-                      <BarcodeScanner />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <TutorialProvider>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Index />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/log"
+                    element={
+                      <ProtectedRoute>
+                        <DailyDiary />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/foods"
+                    element={
+                      <ProtectedRoute>
+                        <FoodLibrary />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/schedule"
+                    element={
+                      <ProtectedRoute>
+                        <Schedule />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <Profile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/pump-rank"
+                    element={
+                      <ProtectedRoute>
+                        <PumpRank />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/scan"
+                    element={
+                      <ProtectedRoute>
+                        <BarcodeScanner />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </TutorialProvider>
             </BrowserRouter>
           </GlobalSplash>
         </TooltipProvider>

@@ -38,6 +38,7 @@ export const useSettings = () => {
       timezone?: string;
       nut3lla_tips_enabled?: boolean;
       tutorial_completed?: boolean;
+      total_xp?: number;
     }) => {
       const { error } = await supabase
         .from("user_settings")
@@ -48,5 +49,17 @@ export const useSettings = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user_settings"] }),
   });
 
-  return { settings: settingsQuery.data, isLoading: settingsQuery.isLoading, updateSettings };
+  const addXP = useMutation({
+    mutationFn: async (amount: number) => {
+      const currentXp = settingsQuery.data?.total_xp || 0;
+      const { error } = await supabase
+        .from("user_settings")
+        .update({ total_xp: currentXp + amount })
+        .eq("user_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user_settings"] }),
+  });
+
+  return { settings: settingsQuery.data, isLoading: settingsQuery.isLoading, updateSettings, addXP };
 };

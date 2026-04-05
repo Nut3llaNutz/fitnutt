@@ -5,7 +5,8 @@ import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
 import { useSettings, Supplement } from "@/hooks/useSettings";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check } from "lucide-react";
+import { Check, Sunrise, Sun, Moon, Coffee } from "lucide-react";
+import { PumpLevelCard } from "@/components/PumpLevelCard";
 
 const MacroRing = ({ label, current, target, color }: { label: string; current: number; target: number; color: string }) => {
   const pct = Math.min((current / target) * 100, 100);
@@ -19,7 +20,7 @@ const MacroRing = ({ label, current, target, color }: { label: string; current: 
           <circle cx="40" cy="40" r="36" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
           <circle
             cx="40" cy="40" r="36" fill="none"
-            stroke={color} strokeWidth="6" strokeLinecap="round"
+            stroke={current >= target ? "#22c55e" : color} strokeWidth="6" strokeLinecap="round"
             strokeDasharray={circumference} strokeDashoffset={dashoffset}
             className="transition-all duration-700"
           />
@@ -33,31 +34,20 @@ const MacroRing = ({ label, current, target, color }: { label: string; current: 
   );
 };
 
-const mealTypeLabels: Record<string, string> = {
-  breakfast: "🌅 Breakfast",
-  lunch: "☀️ Lunch",
-  dinner: "🌙 Dinner",
-  snack: "🍿 Snack",
+const mealTypeConfig: Record<string, { label: string; icon: React.ElementType }> = {
+  breakfast: { label: "Breakfast", icon: Sunrise },
+  lunch: { label: "Lunch", icon: Sun },
+  dinner: { label: "Dinner", icon: Moon },
+  snack: { label: "Snacks", icon: Coffee },
 };
 
 const Index = () => {
   const { log, isLoading: logLoading, toggleCustomSupplement } = useDailyLog();
   const { entries, isLoading: entriesLoading } = useMealEntries(log?.id);
   const { settings, isLoading: settingsLoading } = useSettings();
-  const [showTutorial, setShowTutorial] = useState(false);
 
-  useEffect(() => {
-    if (!settingsLoading && settings && settings.tutorial_completed !== true) {
-      setShowTutorial(true);
-    }
-  }, [settings, settingsLoading]);
-
-  // Get the enabled supplements list and today's taken status
   const enabledSupplements = ((settings?.supplements as unknown as Supplement[]) || []).filter((s) => s.enabled);
   const supplementsTaken = ((log as any)?.supplements_taken as Record<string, boolean>) || {};
-
-  // Push Notifications: Handled completely by Supabase Edge Functions pg_cron tasks now.
-
 
   const totals = entries.reduce(
     (acc, entry) => {
@@ -96,11 +86,9 @@ const Index = () => {
 
   return (
     <Layout>
-      {showTutorial && <TutorialFlow onComplete={() => setShowTutorial(false)} />}
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
 
-        {/* Macro Rings */}
         <div className="flex justify-around" data-tour="macro-rings">
           <MacroRing label="Calories" current={totals.calories} target={targets.calories} color="hsl(var(--primary))" />
           <MacroRing label="Protein" current={totals.protein} target={targets.protein} color="hsl(18, 82%, 41%)" />
@@ -108,19 +96,22 @@ const Index = () => {
           <MacroRing label="Fats" current={totals.fats} target={targets.fats} color="hsl(0, 0%, 60%)" />
         </div>
 
-        {/* Dynamic Supplements — only enabled ones show */}
+        <div className="px-1">
+          <PumpLevelCard />
+        </div>
+
         {enabledSupplements.length > 0 && (
-          <div className="bg-card rounded-xl p-4 space-y-3">
-            <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">Supplements</h2>
+          <div className="bg-card rounded-xl p-4 space-y-3 shadow-md border border-primary/5">
+            <h2 className="text-xs font-bold text-primary uppercase tracking-[0.2em]">Supplements</h2>
             {enabledSupplements.map((s) => (
               <div key={s.id} className="flex items-center justify-between">
-                <span className="text-card-foreground">{s.name}</span>
+                <span className="text-card-foreground font-medium">{s.name}</span>
                 <button
                   onClick={() => toggleCustomSupplement.mutate(s.id)}
-                  className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ease-out ${
+                  className={`h-7 w-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ease-out ${
                     supplementsTaken[s.id]
-                      ? "bg-primary border-primary text-primary-foreground scale-110"
-                      : "bg-muted/30 border-muted-foreground text-transparent scale-100"
+                      ? "bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/20"
+                      : "bg-muted/30 border-muted-foreground/20 text-transparent scale-100"
                   }`}
                 >
                   <Check strokeWidth={3.5} className={`h-4 w-4 transition-transform duration-300 ${supplementsTaken[s.id] ? "scale-100" : "scale-0"}`} />
@@ -130,30 +121,44 @@ const Index = () => {
           </div>
         )}
 
-        {/* Daily Timeline */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Today's Meals</h2>
+        <div className="space-y-4">
+          <h2 className="text-xs font-bold text-primary uppercase tracking-[0.2em] px-1">Fuel Timeline</h2>
           {entriesLoading ? (
             <Skeleton className="h-20 w-full rounded-xl" />
           ) : entries.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No meals logged yet. Head to the Diary to add some!</p>
+            <div className="bg-card/50 backdrop-blur-sm border border-dashed border-primary/20 rounded-2xl p-6 text-center">
+              <p className="text-muted-foreground text-sm font-medium italic">No fuel logged yet. Time to eat! 🥩</p>
+            </div>
           ) : (
             Object.entries(
               entries.reduce((acc: Record<string, typeof entries>, e) => {
                 (acc[e.meal_type] = acc[e.meal_type] || []).push(e);
                 return acc;
               }, {})
-            ).map(([type, items]) => (
-              <div key={type} className="bg-card rounded-xl p-3">
-                <h3 className="text-xs font-semibold text-card-foreground mb-2">{mealTypeLabels[type] || type}</h3>
-                {items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm text-card-foreground">
-                    <span>{(item as any).foods?.name}</span>
-                    <span className="text-muted-foreground">×{item.quantity}</span>
+            ).map(([type, items]) => {
+              const config = mealTypeConfig[type] || { label: type, icon: Coffee };
+              const Icon = config.icon;
+              
+              return (
+                <div key={type} className="bg-card rounded-2xl p-4 shadow-sm border border-primary/5 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Icon className="h-4 w-4" />
+                    <h3 className="text-[10px] font-black uppercase tracking-widest">{config.label}</h3>
                   </div>
-                ))}
-              </div>
-            ))
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center text-sm border-l-2 border-primary/20 pl-3">
+                        <span className="text-foreground font-medium">{(item as any).foods?.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">×{item.quantity}</span>
+                          <span className="text-[11px] font-black italic text-primary/70">{Math.round(((item as any).foods?.calories || 0) * item.quantity)} KCAL</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </div>

@@ -7,25 +7,52 @@ const NUT3LLA_TIPS = [
   "Check those macros! We lean bulking, not dirty bulking.",
   "Drink water. Right now. Do it.",
   "Another rep, another step closer to looking like me.",
-  "You logged your meals today? Because Abs are made in the kitchen.",
+  "You logged your meals today? Because abs are made in the kitchen.",
   "Creatine in the system? You're basically half-god now.",
   "Rest days are just as important as pull days. Stay frosty.",
-  "If the bar ain't bending, you're just pretending. Go log your meals!"
+  "If the bar ain't bending, you're just pretending. Go log your meals!",
+  "Winners train. Losers complain. Which one are you?",
+  "Muscle is built in the gym, fed in the kitchen, and sculpted in your sleep.",
+  "The only bad workout is the one that didn't happen. Get it done!",
+  "Consistency beats intensity. Every. Single. Day.",
+  "Stop waiting for Monday. Start today. The clock is ticking.",
+  "Excuses don't build delts. Heavy presses do.",
+  "Your future self will thank you for that extra set of squats.",
+  "Don't let a bad day turn into a bad week. Get back on track!",
+  "The harder you work, the luckier you get. Keep grinding.",
+  "Motivation gets you started. Discipline keeps you going.",
+  "Suffer the pain of discipline or suffer the pain of regret.",
+  "Your mind will quit a thousand times before your body does. Push through.",
+  "Focus on progress, not perfection. One meal at a time.",
+  "The gym is my therapy. The results are just a bonus.",
+  "Great things never came from comfort zones. Lift heavy!",
+  "Be the person you've always wanted to look like. Log your food!",
+  "No one ever drowned in sweat. Push harder!",
+  "Small wins every day lead to massive results every year.",
+  "Focus on the fuel. Treat your body like a Ferrari, not a trash can.",
+  "Sweat is just your fat crying. Make it sob!",
+  "The only person you should try to be better than is the person you were yesterday."
 ];
 
-// Random interval between 2 to 5 minutes
-const getRandomInterval = () => Math.floor(Math.random() * (300000 - 120000) + 120000);
+// Tips pop up every 1 minute
+const TIP_INTERVAL = 60000;
 
 export const Nut3llaTips = () => {
   const { settings } = useSettings();
   const [activeTip, setActiveTip] = useState<string | null>(null);
+  const lastIndex = React.useRef<number>(-1);
 
   const popRandomTip = useCallback(() => {
     // Suppress tips if the tutorial overlay is currently showing
     if (document.getElementById("tutorial-overlay")) return;
 
-    const randomTip = NUT3LLA_TIPS[Math.floor(Math.random() * NUT3LLA_TIPS.length)];
-    setActiveTip(randomTip);
+    let index;
+    do {
+      index = Math.floor(Math.random() * NUT3LLA_TIPS.length);
+    } while (index === lastIndex.current);
+
+    lastIndex.current = index;
+    setActiveTip(NUT3LLA_TIPS[index]);
     
     // Auto-dismiss the bubble after 8 seconds
     setTimeout(() => {
@@ -42,7 +69,7 @@ export const Nut3llaTips = () => {
         timeoutId = setTimeout(() => {
           popRandomTip();
           scheduleNextTip(); // Reschedule infinitely
-        }, getRandomInterval());
+        }, TIP_INTERVAL);
       };
 
       scheduleNextTip();
@@ -57,6 +84,7 @@ export const Nut3llaTips = () => {
     <Nut3lla 
       message={activeTip}
       position="bottom-right"
+      variant="compact"
       onClose={() => setActiveTip(null)}
       className="z-[200]" // ensure it's atop everything mostly
     />

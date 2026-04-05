@@ -13,7 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Pencil, Plus, Copy, CheckCircle2 } from "lucide-react";
+import { Trash2, Pencil, Plus, Copy, CheckCircle2, Sunrise, Sun, Moon, Coffee } from "lucide-react";
 
 type FilterTab = "all" | "user" | "preset" | "barcode";
 
@@ -67,6 +67,10 @@ const FoodLibrary = () => {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
 
+  // New logging modal state
+  const [loggingFood, setLoggingFood] = useState<Food | null>(null);
+  const [logForm, setLogForm] = useState({ quantity: "1", mealType: "breakfast" });
+
   const openAdd = () => {
     setForm(defaultForm);
     setEditId(null);
@@ -118,15 +122,22 @@ const FoodLibrary = () => {
     setShowForm(false);
   };
 
-  const handleLogDirect = async (f: Food) => {
+  const handleLogRequest = (f: Food) => {
+    setLoggingFood(f);
+    setLogForm({ quantity: "1", mealType: "breakfast" });
+  };
+
+  const executeLog = async () => {
+    if (!loggingFood) return;
     const logData = await ensureLog();
     addEntry.mutate({
       daily_log_id: logData.id,
-      meal_type: "snack",
-      food_id: f.id,
-      quantity: 1,
+      meal_type: logForm.mealType,
+      food_id: loggingFood.id,
+      quantity: parseFloat(logForm.quantity) || 1,
     });
-    toast({ title: `${f.name} logged to Snacks!` });
+    toast({ title: `${loggingFood.name} logged to ${logForm.mealType.charAt(0).toUpperCase() + logForm.mealType.slice(1)}!` });
+    setLoggingFood(null);
   };
 
   // Filter by tab first, then by search within that filtered set
@@ -217,7 +228,7 @@ const FoodLibrary = () => {
                   {isPreset && (
                     <>
                       <button
-                        onClick={() => handleLogDirect(f)}
+                        onClick={() => handleLogRequest(f)}
                         className="p-2 text-green-500 hover:text-green-400 transition-colors"
                         title="Log to diary"
                       >
@@ -402,6 +413,68 @@ const FoodLibrary = () => {
                 {editId ? "Save Changes" : "Add to Library"}
               </Button>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Log Food Detail Selection Dialog */}
+        <Dialog open={!!loggingFood} onOpenChange={() => setLoggingFood(null)}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                Log {loggingFood?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Choose how much and when you're eating this.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6 pt-4">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Serving Amount</label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    value={logForm.quantity}
+                    onChange={(e) => setLogForm({ ...logForm, quantity: e.target.value })}
+                    className="text-lg font-bold"
+                    step="0.1"
+                    min="0.1"
+                  />
+                  <span className="text-sm font-bold text-muted-foreground">{loggingFood?.serving_unit}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Meal Selection</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: "breakfast", label: "Breakfast", icon: Sunrise },
+                    { key: "lunch", label: "Lunch", icon: Sun },
+                    { key: "dinner", label: "Dinner", icon: Moon },
+                    { key: "snack", label: "Snack", icon: Coffee },
+                  ].map((m) => (
+                    <button
+                      key={m.key}
+                      onClick={() => setLogForm({ ...logForm, mealType: m.key })}
+                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all group ${
+                        logForm.mealType === m.key
+                          ? "bg-primary/10 border-primary text-primary"
+                          : "bg-card border-transparent hover:border-primary/20 text-muted-foreground"
+                      }`}
+                    >
+                      <div className={`p-2 rounded-xl transition-colors ${logForm.mealType === m.key ? "bg-primary text-primary-foreground" : "bg-muted group-hover:bg-primary/10 group-hover:text-primary"}`}>
+                        <m.icon size={16} />
+                      </div>
+                      <span className="text-xs font-bold uppercase tracking-tight">{m.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={executeLog} className="w-full h-12 text-lg font-bold rounded-2xl shadow-lg shadow-primary/20">
+                Add to Diary
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

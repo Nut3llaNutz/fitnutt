@@ -11,22 +11,42 @@ const ResetPassword = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const [isRecovery, setIsRecovery] = useState(false);
+
   useEffect(() => {
     const hash = window.location.hash;
     if (hash && hash.includes("type=recovery")) {
-      // Supabase handles session from hash automatically
+      setIsRecovery(true);
+    } else {
+      // Check if we have an active session that might be from a recovery
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) {
+          toast({ 
+            title: "Invalid link", 
+            description: "This password reset link is invalid or has expired.", 
+            variant: "destructive" 
+          });
+          navigate("/auth");
+        } else {
+          setIsRecovery(true);
+        }
+      });
     }
-  }, []);
+  }, [navigate]);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!password) return;
+    
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
+    
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Password updated!" });
-      navigate("/");
+      toast({ title: "Success!", description: "Your password has been updated." });
+      // Small delay before redirect to allow toast to be seen
+      setTimeout(() => navigate("/"), 1500);
     }
     setLoading(false);
   };

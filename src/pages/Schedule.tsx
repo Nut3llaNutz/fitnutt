@@ -3,18 +3,24 @@ import { Layout } from "@/components/Layout";
 import { usePlaybook } from "@/hooks/usePlaybook";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dumbbell, Pencil, Trash2, Plus, Check, RotateCcw } from "lucide-react";
+import { useDailyLog } from "@/hooks/useDailyLog";
+import { PumpLevelCard } from "@/components/PumpLevelCard";
+import { Dumbbell, Pencil, Trash2, Plus, Check, RotateCcw, CheckCircle2 } from "lucide-react";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const Schedule = () => {
   const todayIndex = (new Date().getDay() + 6) % 7;
+  const currentDayName = days[todayIndex];
   const [selected, setSelected] = useState(days[todayIndex]);
   const [editMode, setEditMode] = useState(false);
   const [newExercise, setNewExercise] = useState({ name: "", sets: "" });
 
   const { schedule, updateDayTitle, addExercise, updateExercise, deleteExercise, resetToDefault } = usePlaybook();
+  const { log, toggleExercise } = useDailyLog();
   const day = schedule[selected];
+
+  const completedExercises = (log as any)?.completed_exercises || [];
 
   const handleAddExercise = () => {
     if (!newExercise.name.trim()) return;
@@ -40,7 +46,7 @@ const Schedule = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">The Playbook</h1>
-          <div className="flex gap-2">
+          <div className="flex gap-2 text-primary">
             {editMode && (
               <Button size="sm" variant="ghost" onClick={handleReset} className="text-destructive hover:text-destructive px-2">
                 <RotateCcw className="h-4 w-4" />
@@ -52,101 +58,143 @@ const Schedule = () => {
           </div>
         </div>
 
+        {/* Pump Level Overview */}
+        <div className="px-1">
+          <PumpLevelCard variant="compact" />
+        </div>
+
         {/* Day selector */}
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="flex gap-1 w-full px-1 py-1">
           {days.map((d) => (
             <button
               key={d}
               onClick={() => handleSelectDay(d)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selected === d ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground hover:bg-muted"
+              className={`flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-tighter transition-all duration-300 relative ${
+                selected === d 
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105 z-10" 
+                  : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
               }`}
             >
               {d.slice(0, 3)}
+              {d === currentDayName && (
+                <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary border-2 border-background ${selected === d ? 'hidden' : 'block'}`} />
+              )}
             </button>
           ))}
         </div>
 
         {/* Workout card */}
-        <div className="bg-card rounded-xl p-4 space-y-4">
+        <div className="bg-card rounded-[2rem] p-6 shadow-xl border border-primary/5 space-y-6">
           {/* Day title */}
-          <div className="flex items-center gap-2">
-            <Dumbbell className="h-5 w-5 text-primary flex-shrink-0" />
-            {editMode ? (
-              <Input
-                value={day.title}
-                onChange={(e) => updateDayTitle(selected, e.target.value)}
-                className="text-base font-bold h-8 border-dashed"
-              />
-            ) : (
-              <h2 className="text-lg font-bold text-card-foreground">{day.title}</h2>
-            )}
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <Dumbbell className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Training Protocol</span>
+              {editMode ? (
+                <Input
+                  value={day.title}
+                  onChange={(e) => updateDayTitle(selected, e.target.value)}
+                  className="text-lg font-bold h-9 border-dashed mt-1"
+                />
+              ) : (
+                <h2 className="text-xl font-black italic text-card-foreground tracking-tight">{day.title}</h2>
+              )}
+            </div>
           </div>
 
           {/* Exercises */}
-          <div className="space-y-1">
-            {day.exercises.map((ex, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-2 py-2 ${!editMode ? "border-b border-border last:border-0" : ""}`}
-              >
-                {editMode ? (
-                  <>
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <Input
-                        value={ex.name}
-                        onChange={(e) => updateExercise(selected, i, { ...ex, name: e.target.value })}
-                        placeholder="Exercise name"
-                        className="h-8 text-sm"
-                      />
-                      <Input
-                        value={ex.sets}
-                        onChange={(e) => updateExercise(selected, i, { ...ex, sets: e.target.value })}
-                        placeholder="Sets / reps"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <button
-                      onClick={() => deleteExercise(selected, i)}
-                      className="p-1 text-destructive hover:text-destructive/70 flex-shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex-1 text-card-foreground font-medium text-sm">{ex.name}</span>
-                    <span className="text-muted-foreground text-xs">{ex.sets}</span>
-                  </>
-                )}
-              </div>
-            ))}
+          <div className="space-y-3">
+            {day.exercises.map((ex, i) => {
+              const isCompleted = completedExercises.includes(ex.name);
+              
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${
+                    !editMode 
+                      ? isCompleted 
+                        ? "bg-primary/5 border border-primary/20 opacity-60" 
+                        : "bg-muted/30 border border-transparent hover:bg-muted/50" 
+                      : ""
+                  }`}
+                >
+                  {editMode ? (
+                    <>
+                      <div className="flex-1 grid grid-cols-2 gap-2">
+                        <Input
+                          value={ex.name}
+                          onChange={(e) => updateExercise(selected, i, { ...ex, name: e.target.value })}
+                          placeholder="Exercise name"
+                          className="h-9 text-sm rounded-xl"
+                        />
+                        <Input
+                          value={ex.sets}
+                          onChange={(e) => updateExercise(selected, i, { ...ex, sets: e.target.value })}
+                          placeholder="Sets / reps"
+                          className="h-9 text-sm rounded-xl"
+                        />
+                      </div>
+                      <button
+                        onClick={() => deleteExercise(selected, i)}
+                        className="p-2 text-destructive hover:bg-destructive/10 rounded-xl flex-shrink-0 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => toggleExercise.mutate(ex.name)}
+                        className={`h-8 w-8 rounded-xl border-2 flex items-center justify-center transition-all duration-500 scale-100 active:scale-90 ${
+                          isCompleted
+                            ? "bg-primary border-primary text-primary-foreground rotate-0 shadow-lg shadow-primary/30"
+                            : "bg-card border-primary/20 text-transparent rotate-[-15deg]"
+                        }`}
+                      >
+                        <Check strokeWidth={4} className={`h-4 w-4 transition-transform duration-500 ${isCompleted ? "scale-100" : "scale-0"}`} />
+                      </button>
+                      <div className="flex-1">
+                        <p className={`font-bold text-sm tracking-tight ${isCompleted ? "line-through text-muted-foreground" : "text-card-foreground"}`}>
+                          {ex.name}
+                        </p>
+                        <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest">
+                          {ex.sets}
+                        </p>
+                      </div>
+                      {isCompleted && <CheckCircle2 className="h-4 w-4 text-primary animate-in zoom-in" />}
+                    </>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Add exercise row (edit mode only) */}
             {editMode && (
-              <div className="flex items-center gap-2 pt-3 border-t border-dashed border-border">
+              <div className="flex items-center gap-2 pt-4 border-t border-dashed border-border">
                 <div className="flex-1 grid grid-cols-2 gap-2">
                   <Input
                     value={newExercise.name}
                     onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
                     placeholder="New exercise..."
-                    className="h-8 text-sm"
+                    className="h-9 text-sm rounded-xl"
                     onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
                   />
                   <Input
                     value={newExercise.sets}
                     onChange={(e) => setNewExercise({ ...newExercise, sets: e.target.value })}
                     placeholder="Sets / reps..."
-                    className="h-8 text-sm"
+                    className="h-9 text-sm rounded-xl"
                     onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
                   />
                 </div>
                 <button
                   onClick={handleAddExercise}
                   disabled={!newExercise.name.trim()}
-                  className="p-1 text-primary hover:text-primary/70 disabled:opacity-30 flex-shrink-0"
+                  className="p-2 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 disabled:opacity-30 flex-shrink-0 transition-all active:scale-90"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-6 w-6" strokeWidth={3} />
                 </button>
               </div>
             )}

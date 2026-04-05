@@ -15,9 +15,21 @@ const Auth = () => {
   const { user, loading, setIsAuthenticating } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect to dashboard if already logged in
+  // Handle session-based redirects and recovery flows
   useEffect(() => {
-    if (user) navigate("/", { replace: true });
+    const hash = window.location.hash;
+    const isRecovery = hash.includes("type=recovery");
+    
+    // Fallback: If Supabase redirects to /auth instead of /reset-password (due to Site URL config),
+    // manually redirect the user to the correct reset page.
+    if (isRecovery) {
+      navigate(`/reset-password${hash}`, { replace: true });
+      return;
+    }
+
+    if (user) {
+      navigate("/", { replace: true });
+    }
   }, [user, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -51,7 +63,11 @@ const Auth = () => {
         options: { emailRedirectTo: window.location.origin },
       });
       if (error) {
-        toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+        let errorMessage = error.message;
+        if (error.message.includes("User already registered")) {
+          errorMessage = "An account with this email already exists. Try logging in or resetting your password.";
+        }
+        toast({ title: "Signup failed", description: errorMessage, variant: "destructive" });
       } else {
         toast({ title: "Account created!", description: "Check your email to confirm." });
       }
@@ -60,15 +76,25 @@ const Auth = () => {
   };
 
   const handleGoogleLogin = async () => {
-    setIsAuthenticating(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      }
-    });
-    if (error) {
-      toast({ title: "Google login failed", description: error.message, variant: "destructive" });
+    try {
+      setIsAuthenticating(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast({ 
+        title: "Google login failed", 
+        description: error.message || "Please ensure localhost is authorized in your Supabase & Google dashboards.", 
+        variant: "destructive" 
+      });
       setIsAuthenticating(false);
     }
   };

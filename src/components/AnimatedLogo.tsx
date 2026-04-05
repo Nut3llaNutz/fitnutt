@@ -1,13 +1,17 @@
 import { useState } from "react";
 
-export const AnimatedLogo = ({ className = "h-8 w-8" }: { className?: string }) => {
+export const AnimatedLogo = ({
+  className = "h-8 w-8",
+}: {
+  className?: string;
+}) => {
   const [animating, setAnimating] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (animating) return;
     setAnimating(true);
-    setTimeout(() => setAnimating(false), 2500);
+    setTimeout(() => setAnimating(false), 3000);
   };
 
   if (!animating) {
@@ -22,7 +26,10 @@ export const AnimatedLogo = ({ className = "h-8 w-8" }: { className?: string }) 
   }
 
   return (
-    <div className={`relative cursor-pointer ${className}`} onClick={handleClick}>
+    <div
+      className={`relative cursor-pointer ${className}`}
+      onClick={handleClick}
+    >
       <img
         src="/fitnutt-logo.png"
         alt="FitNutt Up"

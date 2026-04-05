@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Copy, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Copy, ChevronLeft, ChevronRight, Sunrise, Sun, Moon, Coffee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,10 +20,10 @@ import { useQueryClient } from "@tanstack/react-query";
 type FilterTab = "all" | "user" | "preset" | "barcode";
 
 const mealTypes = [
-  { key: "breakfast", label: "🌅 Breakfast" },
-  { key: "lunch", label: "☀️ Lunch" },
-  { key: "dinner", label: "🌙 Dinner" },
-  { key: "snack", label: "🍿 Snacks" },
+  { key: "breakfast", label: "Breakfast", icon: Sunrise },
+  { key: "lunch", label: "Lunch", icon: Sun },
+  { key: "dinner", label: "Dinner", icon: Moon },
+  { key: "snack", label: "Snacks", icon: Coffee },
 ];
 
 const tabLabels: { key: FilterTab; label: string }[] = [
@@ -193,12 +193,17 @@ const DailyDiary = () => {
           </Button>
         </div>
 
-        {mealTypes.map(({ key, label }) => (
+        {mealTypes.map(({ key, label, icon: Icon }) => (
           <div key={key} className="bg-card rounded-xl p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-card-foreground">
-                {label}
-              </h2>
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-semibold text-card-foreground">
+                  {label}
+                </h2>
+              </div>
               <Button
                 size="sm"
                 className="rounded-full h-7 w-7 p-0 bg-primary text-primary-foreground"

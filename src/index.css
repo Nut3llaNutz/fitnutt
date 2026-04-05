@@ -109,6 +109,12 @@
   .animate-logo-pump-down {
     animation: pump-down 1s infinite;
   }
+  .animate-scan-line {
+    animation: scan-line 2s ease-in-out infinite;
+  }
+  .animate-shake-1 {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
 }
 
 @keyframes pump-up {
@@ -119,4 +125,16 @@
 @keyframes pump-down {
   0%, 49.9% { opacity: 0; }
   50%, 100% { opacity: 1; }
+}
+
+@keyframes scan-line {
+  0%, 100% { top: 0%; }
+  50% { top: 100%; }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
 }

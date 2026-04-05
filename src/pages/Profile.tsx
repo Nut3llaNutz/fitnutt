@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut, Bell, Plus, X } from "lucide-react";
+import { LogOut, Bell, Plus, X, Calculator, RefreshCw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { calculateMacros } from "@/lib/calories";
 
 const Profile = () => {
   const { settings, isLoading, updateSettings } = useSettings();
@@ -26,6 +29,12 @@ const Profile = () => {
     fat_target: 70,
     notification_time: "20:30",
     nut3lla_tips_enabled: true,
+    gender: "male",
+    weight_kg: 70,
+    height_cm: 170,
+    age: 25,
+    activity_level: 1.2,
+    goal: "bulk"
   });
 
   const [supplements, setSupplements] = useState<Supplement[]>([]);
@@ -40,10 +49,43 @@ const Profile = () => {
         fat_target: settings.fat_target,
         notification_time: settings.notification_time,
         nut3lla_tips_enabled: settings.nut3lla_tips_enabled ?? true,
+        // @ts-ignore - Extra stats from database
+        gender: settings.gender || "male",
+        // @ts-ignore
+        weight_kg: Number(settings.weight_kg) || 70,
+        // @ts-ignore
+        height_cm: Number(settings.height_cm) || 170,
+        // @ts-ignore
+        age: Number(settings.age) || 25,
+        // @ts-ignore
+        activity_level: Number(settings.activity_level) || 1.2,
+        // @ts-ignore
+        goal: settings.goal || "bulk"
       });
       setSupplements((settings.supplements as unknown as Supplement[]) || []);
     }
   }, [settings]);
+
+  const handleRecalculate = () => {
+    const targets = calculateMacros({
+      gender: form.gender,
+      weight_kg: form.weight_kg,
+      height_cm: form.height_cm,
+      age: form.age,
+      activity_level: form.activity_level,
+      goal: form.goal
+    });
+
+    setForm(prev => ({
+      ...prev,
+      calorie_target: targets.calories,
+      protein_target: targets.protein,
+      carb_target: targets.carbs,
+      fat_target: targets.fats
+    }));
+
+    toast({ title: "Macros Recalculated!", description: "Nut3lla has updated your targets based on your current stats. Don't forget to SAVE!" });
+  };
 
   const handleSave = () => {
     updateSettings.mutate(
@@ -131,6 +173,77 @@ const Profile = () => {
               }}
             />
           </div>
+        </div>
+
+        {/* Physical Stats */}
+        <div className="bg-card rounded-xl p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">
+              Physical Stats
+            </h2>
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+              <Calculator className="h-4 w-4 text-primary" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Gender</Label>
+              <Select value={form.gender} onValueChange={(v) => setForm(f => ({ ...f, gender: v }))}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Goal</Label>
+              <Select value={form.goal} onValueChange={(v) => setForm(f => ({ ...f, goal: v }))}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[200]">
+                  <SelectItem value="bulk">Bulk (+Lean Mass)</SelectItem>
+                  <SelectItem value="cut">Cut (-Body Fat)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Weight (kg)</Label>
+              <Input type="number" value={form.weight_kg} onChange={(e) => setForm(f => ({ ...f, weight_kg: Number(e.target.value) }))} className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Height (cm)</Label>
+              <Input type="number" value={form.height_cm} onChange={(e) => setForm(f => ({ ...f, height_cm: Number(e.target.value) }))} className="h-9" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Age</Label>
+              <Input type="number" value={form.age} onChange={(e) => setForm(f => ({ ...f, age: Number(e.target.value) }))} className="h-9" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Activity Level</Label>
+            <Select value={String(form.activity_level)} onValueChange={(v) => setForm(f => ({ ...f, activity_level: Number(v) }))}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent className="z-[200]">
+                <SelectItem value="1.2">Sedentary (Desk Job)</SelectItem>
+                <SelectItem value="1.375">Lightly Active (Gym 1-3x)</SelectItem>
+                <SelectItem value="1.55">Moderately Active (Gym 3-5x)</SelectItem>
+                <SelectItem value="1.725">Very Active (Gym 6-7x)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            className="w-full h-9 text-[10px] font-bold border-primary/20 hover:bg-primary/5 transition-colors tracking-wider" 
+            onClick={handleRecalculate}
+          >
+            <RefreshCw className="h-3 w-3 mr-2" /> RECALCULATE TARGETS
+          </Button>
         </div>
 
         {/* Macro Targets */}
