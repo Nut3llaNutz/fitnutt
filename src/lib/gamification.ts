@@ -49,3 +49,17 @@ export const XP_REWARDS = {
   COMPLETE_EXERCISE: 50,
   DAILY_GOAL_MET: 100
 };
+
+export const calculateXpForLevelJump = (currentXp: number, jumps: number): number => {
+  const current = calculateLevel(currentXp);
+  const targetLevel = current.level + jumps;
+  
+  let targetTotalXp = 0;
+  let level = 1;
+  while (level < targetLevel) {
+    targetTotalXp += level * XP_BASE;
+    level++;
+  }
+  
+  return Math.max(0, targetTotalXp - currentXp);
+};

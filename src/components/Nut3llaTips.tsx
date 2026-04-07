@@ -40,7 +40,17 @@ const TIP_INTERVAL = 60000;
 export const Nut3llaTips = () => {
   const { settings } = useSettings();
   const [activeTip, setActiveTip] = useState<string | null>(null);
+  const [hasDialog, setHasDialog] = useState(false);
   const lastIndex = React.useRef<number>(-1);
+
+  // Check for active dialogs to shift position
+  useEffect(() => {
+    const checkDialog = () => {
+      setHasDialog(!!document.querySelector('[role="dialog"]'));
+    };
+    const interval = setInterval(checkDialog, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const popRandomTip = useCallback(() => {
     // Suppress tips if the tutorial overlay is currently showing
@@ -86,7 +96,7 @@ export const Nut3llaTips = () => {
       position="bottom-right"
       variant="compact"
       onClose={() => setActiveTip(null)}
-      className="z-[200]" // ensure it's atop everything mostly
+      className={`z-[200] transition-transform duration-500 ${hasDialog ? "translate-y-24" : "translate-y-0"}`}
     />
   );
 };

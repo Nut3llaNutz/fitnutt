@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { useFoods, Food } from "@/hooks/useFoods";
 import { useDailyLog } from "@/hooks/useDailyLog";
@@ -10,12 +10,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Pencil, Plus, Copy, CheckCircle2, Sunrise, Sun, Moon, Coffee } from "lucide-react";
+import { Plus, ChevronRight, Sunrise, Sun, Moon, Coffee, Search, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-type FilterTab = "all" | "user" | "preset" | "barcode";
+type Category = "All" | "Fruits" | "Drinks" | "Snacks" | "Meals";
+const categories: Category[] = ["All", "Fruits", "Drinks", "Snacks", "Meals"];
 
 interface FoodForm {
   name: string;
@@ -25,6 +28,8 @@ interface FoodForm {
   protein: number | "";
   carbs: number | "";
   fats: number | "";
+  category: string;
+  is_veg: boolean;
 }
 
 const defaultForm: FoodForm = {
@@ -35,27 +40,11 @@ const defaultForm: FoodForm = {
   protein: "",
   carbs: "",
   fats: "",
+  category: "Meals",
+  is_veg: true,
 };
 
-const tabLabels: { key: FilterTab; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "user", label: "My Foods" },
-  { key: "preset", label: "Pre-built" },
-  { key: "barcode", label: "Scanned" },
-];
-
-const sourceBadge: Record<string, { label: string; className: string }> = {
-  preset: {
-    label: "Pre-built",
-    className: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  },
-  barcode: {
-    label: "Scanned",
-    className: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  },
-};
-
-const FoodLibrary = () => {
+const Fuel = () => {
   const { foods, addFood, updateFood, deleteFood } = useFoods();
   const { log, ensureLog } = useDailyLog();
   const { addEntry } = useMealEntries(log?.id);
@@ -65,14 +54,19 @@ const FoodLibrary = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FoodForm>(defaultForm);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [selectedSource, setSelectedSource] = useState<"user" | "preset" | "barcode">("preset");
+  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [isVegOnly, setIsVegOnly] = useState(() => localStorage.getItem("diet_preference") !== "non-veg");
 
-  // New logging modal state
   const [loggingFood, setLoggingFood] = useState<Food | null>(null);
   const [logForm, setLogForm] = useState({ quantity: "1", mealType: "breakfast" });
 
+  useEffect(() => {
+    localStorage.setItem("diet_preference", isVegOnly ? "veg" : "non-veg");
+  }, [isVegOnly]);
+
   const openAdd = () => {
-    setForm(defaultForm);
+    setForm({ ...defaultForm, is_veg: isVegOnly });
     setEditId(null);
     setShowForm(true);
   };
@@ -86,23 +80,10 @@ const FoodLibrary = () => {
       protein: f.protein,
       carbs: f.carbs,
       fats: f.fats,
+      category: f.category || "Meals",
+      is_veg: f.is_veg,
     });
     setEditId(f.id);
-    setShowForm(true);
-  };
-
-  // "Edit Copy" for presets — save a new user-owned copy
-  const openEditCopy = (f: Food) => {
-    setForm({
-      name: f.name,
-      serving_size: f.serving_size,
-      serving_unit: f.serving_unit,
-      calories: f.calories,
-      protein: f.protein,
-      carbs: f.carbs,
-      fats: f.fats,
-    });
-    setEditId(null); // null = new food, will be saved as source:'user'
     setShowForm(true);
   };
 
@@ -116,15 +97,60 @@ const FoodLibrary = () => {
       protein: Number(form.protein) || 0,
       carbs: Number(form.carbs) || 0,
       fats: Number(form.fats) || 0,
+      category: form.category,
+      is_veg: form.is_veg,
     };
     if (editId) updateFood.mutate({ id: editId, ...payload });
     else addFood.mutate({ ...payload, source: "user" });
+    
+    toast({ title: editId ? "Food updated!" : "Food added!" });
     setShowForm(false);
   };
 
-  const handleLogRequest = (f: Food) => {
-    setLoggingFood(f);
-    setLogForm({ quantity: "1", mealType: "breakfast" });
+  const handleDelete = () => {
+    if (!editId) return;
+    if (confirm("Are you sure you want to delete this food?")) {
+      deleteFood.mutate(editId);
+      toast({ title: "Food deleted" });
+      setShowForm(false);
+    }
+  };
+
+  const handleLogDirectly = async (mealType: string) => {
+    const logData = await ensureLog();
+    let targetFoodId = editId;
+    
+    if (!editId) {
+      const { data, error } = await supabase.from("foods").insert({
+        name: form.name,
+        serving_size: Number(form.serving_size) || 0,
+        serving_unit: form.serving_unit,
+        calories: Number(form.calories) || 0,
+        protein: Number(form.protein) || 0,
+        carbs: Number(form.carbs) || 0,
+        fats: Number(form.fats) || 0,
+        category: form.category,
+        is_veg: form.is_veg,
+        source: "user",
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+      }).select().single();
+      
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+        return;
+      }
+      targetFoodId = data.id;
+    }
+
+    addEntry.mutate({
+      daily_log_id: logData.id,
+      meal_type: mealType,
+      food_id: targetFoodId!,
+      quantity: 1, 
+    });
+
+    toast({ title: `Logged to ${mealType}!` });
+    setShowForm(false);
   };
 
   const executeLog = async () => {
@@ -136,343 +162,329 @@ const FoodLibrary = () => {
       food_id: loggingFood.id,
       quantity: parseFloat(logForm.quantity) || 1,
     });
-    toast({ title: `${loggingFood.name} logged to ${logForm.mealType.charAt(0).toUpperCase() + logForm.mealType.slice(1)}!` });
+    toast({ title: `${loggingFood.name} logged!` });
     setLoggingFood(null);
   };
 
-  // Filter by tab first, then by search within that filtered set
-  const tabFiltered = foods.filter((f) => {
-    if (activeTab === "all") return true;
-    return f.source === activeTab;
-  });
+  const filtered = useMemo(() => {
+    return foods.filter((f) => {
+      const matchesSearch = f.name.toLowerCase().includes(search.toLowerCase());
+      const matchesSource = f.source === selectedSource;
+      let matchesCategory = true;
+      if (activeCategory !== "All") matchesCategory = f.category === activeCategory;
+      const matchesDiet = f.is_veg === isVegOnly;
+      return matchesSearch && matchesSource && matchesCategory && matchesDiet;
+    });
+  }, [foods, search, selectedSource, activeCategory, isVegOnly]);
 
-  const filtered = tabFiltered.filter((f) =>
-    f.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const currentFood = editId ? foods.find(f => f.id === editId) : null;
+  const canDelete = editId && currentFood && currentFood.source !== "preset";
 
   return (
     <Layout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Food Library</h1>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between px-1">
+          <h1 className="text-2xl font-bold tracking-tight">Fuel Library</h1>
           <Button
-            size="sm"
+            size="icon"
+            variant="ghost"
             onClick={openAdd}
-            className="rounded-full h-9 w-9 p-0 bg-primary text-primary-foreground"
+            className="h-10 w-10 text-primary hover:bg-primary/10 rounded-xl"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-6 w-6" />
           </Button>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
-          {tabLabels.map(({ key, label }) => (
+        {/* Source Filter */}
+        <div className="flex gap-2 w-full px-1">
+          {[
+            { id: "user", label: "My Foods" },
+            { id: "preset", label: "Pre-built" },
+            { id: "barcode", label: "Scanned" }
+          ].map((s) => (
             <button
-              key={key}
-              onClick={() => {
-                setActiveTab(key);
-                setSearch("");
-              }}
-              className={`flex-1 text-xs font-medium py-1.5 rounded-lg transition-all ${
-                activeTab === key
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+              key={s.id}
+              onClick={() => setSelectedSource(s.id as any)}
+              className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                selectedSource === s.id
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "bg-card text-muted-foreground hover:bg-muted"
               }`}
             >
-              {label}
+              {s.label}
             </button>
           ))}
         </div>
 
-        <Input
-          placeholder={`Search ${activeTab === "all" ? "all foods" : (tabLabels.find((t) => t.key === activeTab)?.label ?? "")}...`}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        {/* Category Pills */}
+        <div className="flex gap-1.5 flex-wrap px-1">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border transition-all ${
+                activeCategory === cat
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-muted hover:border-primary/30"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
 
-        <div className="space-y-2">
-          {filtered.map((f) => {
-            const badge = sourceBadge[f.source];
-            const isPreset = f.source === "preset";
-            const isOwned = f.source === "user" || f.source === "barcode";
+        {/* Search & Toggle */}
+        <div className="flex items-center gap-3 px-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-10 bg-card/50 rounded-xl border-none ring-1 ring-muted"
+            />
+          </div>
+          <div className="flex items-center gap-2 bg-card px-3 py-2 rounded-xl ring-1 ring-muted">
+             <span className={`text-[9px] font-black uppercase tracking-widest ${isVegOnly ? "text-green-500" : "text-red-500"}`}>
+               {isVegOnly ? "Veg" : "Non-Veg"}
+             </span>
+             <Switch 
+               checked={isVegOnly} 
+               onCheckedChange={setIsVegOnly}
+               className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-red-500"
+             />
+          </div>
+        </div>
 
-            return (
+        {/* Items List */}
+        <div className="space-y-2.5 px-1 pb-4">
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 border border-dashed rounded-2xl border-muted">
+              <p className="text-muted-foreground text-sm font-medium">No results found.</p>
+            </div>
+          ) : (
+            filtered.map((f) => (
               <div
                 key={f.id}
-                className="bg-card rounded-xl p-3 flex items-center justify-between gap-2"
+                className="bg-card rounded-2xl p-4 border border-muted hover:border-primary/20 cursor-pointer transition-all active:scale-[0.99]"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-card-foreground truncate">
-                      {f.name}
-                    </span>
-                    {badge && (
-                      <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${badge.className}`}
-                      >
-                        {badge.label}
-                      </span>
-                    )}
+                <div className="flex justify-between items-center mb-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`h-2 w-2 rounded-full flex-shrink-0 ${f.is_veg ? "bg-green-500" : "bg-red-500"}`} />
+                    <span className="font-bold text-foreground truncate text-sm">{f.name}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {f.calories} kcal · {f.protein}g P · {f.carbs}g C · {f.fats}
-                    g F
-                    <span className="ml-1">
-                      per {f.serving_size}
-                      {f.serving_unit}
-                    </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setLoggingFood(f); setLogForm({ quantity: "1", mealType: "breakfast" }); }}
+                      className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEdit(f); }}
+                      className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex gap-1 shrink-0">
-                  {isPreset && (
-                    <>
-                      <button
-                        onClick={() => handleLogRequest(f)}
-                        className="p-2 text-green-500 hover:text-green-400 transition-colors"
-                        title="Log to diary"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => openEditCopy(f)}
-                        className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                  {isOwned && (
-                    <>
-                      <button
-                        onClick={() => openEdit(f)}
-                        className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => deleteFood.mutate(f.id)}
-                        className="p-2 text-destructive hover:text-destructive/80 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
+                
+                <div className="flex gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">
+                  <span className="text-primary/70">{f.calories} KCAL</span>
+                  <span>{f.protein}G P</span>
+                  <span>{f.carbs}G C</span>
+                  <span>{f.fats}G F</span>
+                  <span className="ml-auto opacity-50">{f.serving_size}{f.serving_unit}</span>
                 </div>
               </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">
-              {search ? `No results for "${search}"` : "Nothing here yet."}
-            </p>
+            ))
           )}
         </div>
 
+        {/* Add/Edit Modal */}
         <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editId ? "Edit Food Item" : "Add Food Item"}
+          <DialogContent className="w-[calc(100%-2.5rem)] max-w-[360px] rounded-3xl p-6 border-none shadow-2xl">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-xl font-bold tracking-tight">
+                {editId ? "Edit Item" : "New Item"}
               </DialogTitle>
-              <DialogDescription>
-                {editId
-                  ? "Update the nutritional info for this food."
-                  : "Enter nutritional info per serving. All values are per one serving."}
-              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Food Name
-                </label>
-                <Input
-                  placeholder="e.g. Oats, Chicken Breast, Whey Protein..."
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                  className="mt-1"
-                />
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Name</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                    className="h-10 rounded-xl bg-muted/30 border-none shadow-inner font-medium"
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-1.5 pt-4">
+                  <span className={`text-[8px] font-black uppercase ${form.is_veg ? "text-green-500" : "text-red-500"}`}>
+                    {form.is_veg ? "Veg" : "Non-Veg"}
+                  </span>
+                  <Switch
+                    checked={form.is_veg}
+                    onCheckedChange={(v) => setForm({ ...form, is_veg: v })}
+                    className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-red-500 scale-90"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Serving Size
-                </label>
-                <div className="grid grid-cols-2 gap-2 mt-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Serving</Label>
+                  <div className="flex gap-1">
+                    <Input
+                      type="number"
+                      value={form.serving_size}
+                      onChange={(e) => setForm({ ...form, serving_size: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })}
+                      className="h-10 rounded-xl bg-muted/30 border-none flex-1 text-center"
+                    />
+                    <Input
+                      value={form.serving_unit}
+                      onChange={(e) => setForm({ ...form, serving_unit: e.target.value })}
+                      className="h-10 w-12 rounded-xl bg-muted/30 border-none text-center"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Calories</Label>
                   <Input
                     type="number"
-                    placeholder="Amount (e.g. 100)"
-                    value={form.serving_size}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        serving_size:
-                          e.target.value === ""
-                            ? ""
-                            : parseFloat(e.target.value) || 0,
-                      })
-                    }
-                  />
-                  <Input
-                    placeholder="Unit (g, ml, scoop, piece...)"
-                    value={form.serving_unit}
-                    onChange={(e) =>
-                      setForm({ ...form, serving_unit: e.target.value })
-                    }
+                    value={form.calories}
+                    onChange={(e) => setForm({ ...form, calories: e.target.value === "" ? "" : parseFloat(e.target.value) || 0 })}
+                    className="h-10 rounded-xl bg-muted/30 border-none text-center font-bold text-primary"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Macros per serving
-                </label>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <div>
-                    <label className="text-[10px] text-muted-foreground">
-                      Calories (kcal)
-                    </label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={form.calories}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          calories:
-                            e.target.value === ""
-                              ? ""
-                              : parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground">
-                      Protein (g)
-                    </label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={form.protein}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          protein:
-                            e.target.value === ""
-                              ? ""
-                              : parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground">
-                      Carbs (g)
-                    </label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={form.carbs}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          carbs:
-                            e.target.value === ""
-                              ? ""
-                              : parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground">
-                      Fats (g)
-                    </label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={form.fats}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          fats:
-                            e.target.value === ""
-                              ? ""
-                              : parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full">
-                {editId ? "Save Changes" : "Add to Library"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Log Food Detail Selection Dialog */}
-        <Dialog open={!!loggingFood} onOpenChange={() => setLoggingFood(null)}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                Log {loggingFood?.name}
-              </DialogTitle>
-              <DialogDescription>
-                Choose how much and when you're eating this.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Serving Amount</label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    value={logForm.quantity}
-                    onChange={(e) => setLogForm({ ...logForm, quantity: e.target.value })}
-                    className="text-lg font-bold"
-                    step="0.1"
-                    min="0.1"
-                  />
-                  <span className="text-sm font-bold text-muted-foreground">{loggingFood?.serving_unit}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Meal Selection</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: "breakfast", label: "Breakfast", icon: Sunrise },
-                    { key: "lunch", label: "Lunch", icon: Sun },
-                    { key: "dinner", label: "Dinner", icon: Moon },
-                    { key: "snack", label: "Snack", icon: Coffee },
-                  ].map((m) => (
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Category</Label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {categories.filter(c => c !== "All").map(c => (
                     <button
-                      key={m.key}
-                      onClick={() => setLogForm({ ...logForm, mealType: m.key })}
-                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all group ${
-                        logForm.mealType === m.key
-                          ? "bg-primary/10 border-primary text-primary"
-                          : "bg-card border-transparent hover:border-primary/20 text-muted-foreground"
+                      key={c}
+                      type="button"
+                      onClick={() => setForm({ ...form, category: c })}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                        form.category === c
+                          ? "bg-primary text-primary-foreground border-primary shadow-md"
+                          : "bg-muted/30 text-muted-foreground border-transparent hover:border-primary/30"
                       }`}
                     >
-                      <div className={`p-2 rounded-xl transition-colors ${logForm.mealType === m.key ? "bg-primary text-primary-foreground" : "bg-muted group-hover:bg-primary/10 group-hover:text-primary"}`}>
-                        <m.icon size={16} />
-                      </div>
-                      <span className="text-xs font-bold uppercase tracking-tight">{m.label}</span>
+                      {c}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <Button onClick={executeLog} className="w-full h-12 text-lg font-bold rounded-2xl shadow-lg shadow-primary/20">
-                Add to Diary
+              <div className="grid grid-cols-3 gap-3 bg-muted/20 p-4 rounded-2xl">
+                {(
+                  [
+                    { label: "Protein", k: "protein" },
+                    { label: "Carbs", k: "carbs" },
+                    { label: "Fats", k: "fats" },
+                  ] as const
+                ).map((m) => (
+                  <div key={m.k} className="space-y-1 text-center">
+                    <span className="text-[8px] font-black uppercase text-muted-foreground">
+                      {m.label}
+                    </span>
+                    <Input
+                      type="number"
+                      value={form[m.k]}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          [m.k]: e.target.value === "" ? "" : parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="h-9 rounded-lg bg-background border-none text-center font-bold p-0"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+                  {editId ? "Update" : "Save"}
+                </Button>
+                {canDelete && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={handleDelete}
+                    className="h-12 w-12 rounded-2xl p-0 border-destructive/20 text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                )}
+                <div className="relative group">
+                   <Button type="button" variant="outline" className="h-12 w-12 rounded-2xl p-0">
+                     <Plus className="h-5 w-5" />
+                   </Button>
+                   <div className="absolute right-0 bottom-full mb-3 hidden group-hover:block bg-card rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden z-50 min-w-[140px]">
+                      {["breakfast", "lunch", "dinner", "snack"].map(m => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => handleLogDirectly(m)}
+                          className="w-full px-4 py-3 text-left text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground border-b border-muted last:border-none"
+                        >
+                          Log to {m}
+                        </button>
+                      ))}
+                   </div>
+                </div>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Log Confirmation */}
+        <Dialog open={!!loggingFood} onOpenChange={() => setLoggingFood(null)}>
+          <DialogContent className="w-[calc(100%-2.5rem)] max-w-[360px] rounded-3xl p-6">
+            <DialogHeader className="mb-4">
+               <DialogTitle className="text-xl font-bold">Log {loggingFood?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Amount</Label>
+                <div className="flex items-center gap-3 bg-muted/30 p-4 rounded-xl">
+                  <Input
+                    type="number"
+                    value={logForm.quantity}
+                    onChange={(e) => setLogForm({ ...logForm, quantity: e.target.value })}
+                    className="text-2xl font-black bg-transparent border-none p-0 h-auto focus-visible:ring-0"
+                  />
+                  <span className="font-bold text-primary">{loggingFood?.serving_unit}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { k: "breakfast", l: "Breakfast", i: Sunrise },
+                  { k: "lunch", l: "Lunch", i: Sun },
+                  { k: "dinner", l: "Dinner", i: Moon },
+                  { k: "snack", l: "Snacks", i: Coffee },
+                ].map(m => (
+                  <button
+                    key={m.k}
+                    onClick={() => setLogForm({ ...logForm, mealType: m.k })}
+                    className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                      logForm.mealType === m.k ? "bg-primary border-primary text-primary-foreground shadow-md" : "bg-card border-muted text-muted-foreground"
+                    }`}
+                  >
+                    <m.i size={14} />
+                    <span className="text-[9px] font-black uppercase">{m.l}</span>
+                  </button>
+                ))}
+              </div>
+              <Button onClick={executeLog} className="w-full h-12 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+                Confirm Log
               </Button>
             </div>
           </DialogContent>
@@ -482,4 +494,4 @@ const FoodLibrary = () => {
   );
 };
 
-export default FoodLibrary;
+export default Fuel;

@@ -11,6 +11,8 @@ export interface Food {
   protein: number;
   carbs: number;
   fats: number;
+  category: string;
+  is_veg: boolean;
   source: "user" | "preset" | "barcode";
   barcode?: string | null;
   user_id?: string | null;
@@ -38,7 +40,7 @@ export const useFoods = () => {
     mutationFn: async (food: {
       name: string; serving_size: number; serving_unit: string;
       calories: number; protein: number; carbs: number; fats: number;
-      source?: string; barcode?: string;
+      category: string; is_veg: boolean; source?: string; barcode?: string;
     }) => {
       const { error } = await supabase.from("foods").insert({
         ...food,
@@ -54,6 +56,7 @@ export const useFoods = () => {
     mutationFn: async ({ id, ...food }: {
       id: string; name: string; serving_size: number; serving_unit: string;
       calories: number; protein: number; carbs: number; fats: number;
+      category: string; is_veg: boolean;
     }) => {
       const { error } = await supabase.from("foods").update(food).eq("id", id);
       if (error) throw error;

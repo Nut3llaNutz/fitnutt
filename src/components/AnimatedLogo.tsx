@@ -2,8 +2,10 @@ import { useState } from "react";
 
 export const AnimatedLogo = ({
   className = "h-8 w-8",
+  onToggle,
 }: {
   className?: string;
+  onToggle?: () => void;
 }) => {
   const [animating, setAnimating] = useState(false);
 
@@ -11,6 +13,7 @@ export const AnimatedLogo = ({
     e.preventDefault();
     if (animating) return;
     setAnimating(true);
+    if (onToggle) onToggle();
     setTimeout(() => setAnimating(false), 3000);
   };
 

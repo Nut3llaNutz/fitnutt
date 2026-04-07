@@ -95,25 +95,23 @@ const BarcodeScanner = () => {
       scannerRef.current = html5QrCode;
 
       const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 150 },
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-        ]
+        fps: 20,
+        // Removing qrbox here suppresses the library's default UI overlay
+        // We handle the visual ROI with our own React overlay for a premium look
+        aspectRatio: 1.333333,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
       };
 
       await html5QrCode.start(
         { facingMode: "environment" },
         config,
         (decodedText) => {
-          toast({ title: "Barcode Detected!", description: decodedText });
+          // Success!
           handleBarcodeScanned(decodedText);
         },
-        undefined // Sucessful scan is handled, errors are usually ignored per frame
+        undefined // Success handled, errors ignored per frame
       );
     } catch (e: any) {
       console.error("Camera error:", e);
@@ -140,6 +138,8 @@ const BarcodeScanner = () => {
         protein: Number(form.protein) || 0,
         carbs: Number(form.carbs) || 0,
         fats: Number(form.fats) || 0,
+        category: "Meals",
+        is_veg: true,
         source: "barcode",
       },
       {

@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { TutorialProvider } from "@/contexts/TutorialContext";
+import { useSettings } from "@/hooks/useSettings";
 import Index from "./pages/Index";
 import DailyDiary from "./pages/DailyDiary";
 import FoodLibrary from "./pages/FoodLibrary";
@@ -27,23 +28,34 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const GlobalSplash = ({ children }: { children: React.ReactNode }) => {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
+  const { settings } = useSettings();
   const [minSplashDone, setMinSplashDone] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isUnmounted, setIsUnmounted] = useState(false);
 
+  // Normal splash timer (2.5s)
   useEffect(() => {
     const timer = setTimeout(() => setMinSplashDone(true), 2500);
     return () => clearTimeout(timer);
   }, []);
 
+  // skip splash if tutorial is active
   useEffect(() => {
-    if (!loading && minSplashDone) {
+    if (user && settings && settings.tutorial_completed === false) {
+      setMinSplashDone(true);
+      setIsFadingOut(true);
+      setIsUnmounted(true);
+    }
+  }, [user, settings]);
+
+  useEffect(() => {
+    if (!loading && minSplashDone && !isUnmounted) {
       setIsFadingOut(true);
       const timer = setTimeout(() => setIsUnmounted(true), 500);
       return () => clearTimeout(timer);
     }
-  }, [loading, minSplashDone]);
+  }, [loading, minSplashDone, isUnmounted]);
 
   return (
     <>

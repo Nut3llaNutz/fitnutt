@@ -39,6 +39,11 @@ export const useSettings = () => {
       nut3lla_tips_enabled?: boolean;
       tutorial_completed?: boolean;
       total_xp?: number;
+      logo_taps_count?: number;
+      last_logo_tap_date?: string;
+      logo_tap_streak?: number;
+      logo_easter_egg_triggered?: boolean;
+      streak_easter_egg_triggered?: boolean;
     }) => {
       const { error } = await supabase
         .from("user_settings")
@@ -51,10 +56,10 @@ export const useSettings = () => {
 
   const addXP = useMutation({
     mutationFn: async (amount: number) => {
-      const currentXp = settingsQuery.data?.total_xp || 0;
+      const currentXp = (settingsQuery.data as any)?.total_xp || 0;
       const { error } = await supabase
         .from("user_settings")
-        .update({ total_xp: currentXp + amount })
+        .update({ total_xp: currentXp + amount } as any)
         .eq("user_id", user!.id);
       if (error) throw error;
     },
