@@ -79,9 +79,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     queryFn: async () => {
       const { data, error } = await import("@/integrations/supabase/client").then(m => 
         m.supabase.from("daily_logs")
-          .select("date")
+          .select("date, creatine_taken, whey_taken, supplements_taken, meal_entries(id)")
           .order("date", { ascending: false })
-          .limit(30)
+          .limit(60) // Fetch more to ensure we find enough active days
       );
       if (error) throw error;
       return data;
@@ -90,27 +90,40 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
   const streak = (() => {
     if (!recentLogs || recentLogs.length === 0) return 0;
-    let count = 0;
+    
+    // Filter for days that actually have activity
+    const activeLogs = recentLogs.filter((log: any) => {
+      const hasSupps = log.creatine_taken || log.whey_taken || (log.supplements_taken && Object.keys(log.supplements_taken).length > 0);
+      const hasMeals = log.meal_entries && log.meal_entries.length > 0;
+      return hasSupps || hasMeals;
+    });
+
+    if (activeLogs.length === 0) return 0;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Check if there was activity today or yesterday to continue the streak
-    const lastLogDate = new Date(recentLogs[0].date);
-    lastLogDate.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((today.getTime() - lastLogDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Check if the most recent activity was today or yesterday
+    const lastActiveDate = new Date(activeLogs[0].date);
+    lastActiveDate.setHours(0, 0, 0, 0);
+    const diffDaysFromToday = Math.floor((today.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (diffDays > 1) return 0;
+    // If no activity today OR yesterday, streak is dead
+    if (diffDaysFromToday > 1) return 0;
 
-    for (let i = 0; i < recentLogs.length - 1; i++) {
-      const curr = new Date(recentLogs[i].date);
-      const prev = new Date(recentLogs[i+1].date);
+    let count = 1; // We have at least one active day (today or yesterday)
+    for (let i = 0; i < activeLogs.length - 1; i++) {
+      const curr = new Date(activeLogs[i].date);
+      const prev = new Date(activeLogs[i+1].date);
       curr.setHours(0, 0, 0, 0);
       prev.setHours(0, 0, 0, 0);
+      
       const diff = Math.floor((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+      // If the gap between active days is exactly 1 day, the streak continues
       if (diff === 1) count++;
       else break;
     }
-    return count + (diffDays <= 1 ? 1 : 0);
+    return count;
   })();
 
   const targets = {
@@ -195,18 +208,25 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   };
 
   const handleInviteFriends = () => {
-    const text = "Stop overcomplicating your fitness. Use FitNutt to track your fuel and training. 🚀 Join the pack: https://fitnutt.app";
+    const text = `Stop overcomplicating your fitness. Use FitNutt to track your fuel and training. 🚀
+
+Join the pack: https://fitnutt.netlify.app
+
+📲 How to install (PWA):
+iOS - Share > Add to Homescreen
+Android - Browser Menu > Add to Homescreen > Install`;
+
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
     if (isMobile && navigator.share) {
       navigator.share({
         title: "Join FitNutt",
         text,
-        url: "https://fitnutt.app",
+        url: "https://fitnutt.netlify.app",
       });
     } else {
       navigator.clipboard.writeText(text);
-      toast({ title: "Invite link copied!" });
+      toast({ title: "Invite info copied!" });
     }
     setIsShareOpen(false);
   };

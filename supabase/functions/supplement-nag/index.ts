@@ -59,7 +59,7 @@ async function createJwt(audience: string, privateKey: CryptoKey): Promise<strin
   const payload = {
     aud: audience,
     exp: now + 86400,
-    sub: "mailto:noreply@fitnutt.app",
+    sub: "mailto:noreply@fitnutt.netlify.app",
   };
 
   const enc = new TextEncoder();
