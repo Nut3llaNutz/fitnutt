@@ -17,9 +17,11 @@
 ---
 
 ## 🚀 Overview
+
 **FitNutt** is a mobile-first Progressive Web App (PWA) designed for serious lifters. Track your macros, meals, and supplements to ensure you're on track for your next PR. No fluff, just gains.
 
 ## ✨ Features
+
 - 📊 **Macro Tracking**: Detailed breakdown of Proteins, Carbs, and Fats with visual progress.
 - 🥗 **Meal Logging**: Log your nutrition in seconds to stay on top of your fuel.
 - 💊 **Supplement Reminders**: Integrated system to ensure you never miss your creatine or whey.
@@ -27,15 +29,18 @@
 - 🔥 **Pump Levels**: Gamified experience that tracks your consistency and levels you up.
 
 ## 📲 Installation Instructions
+
 FitNutt is a PWA (Progressive Web App), giving you a native app experience without the app store clutter.
 
 ### **iOS (iPhone/iPad)**
+
 1. Open [fitnutt.netlify.app](https://fitnutt.netlify.app) in **Safari**.
 2. Tap the **Share** button (square with up arrow) at the bottom.
 3. Scroll down and tap **"Add to Home Screen"**.
 4. Confirm by tapping **Add**.
 
 ### **Android**
+
 1. Open [fitnutt.netlify.app](https://fitnutt.netlify.app) in **Chrome**.
 2. Tap the **Menu** (three dots) in the top right.
 3. Tap **"Add to Home screen"** or **"Install app"**.
@@ -43,5 +48,5 @@ FitNutt is a PWA (Progressive Web App), giving you a native app experience witho
 
 ---
 
-Built with 🥩 by the FitNutt Pack.
+Built by 🥜
 [fitnutt.netlify.app](https://fitnutt.netlify.app)
