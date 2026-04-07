@@ -21,7 +21,12 @@ import { Nut3llaTips } from "./Nut3llaTips";
 import { TutorialFlow } from "./TutorialFlow";
 import { useTutorial } from "@/contexts/TutorialContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "./ui/button";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
@@ -70,19 +75,24 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         fats: acc.fats + food.fats * entry.quantity,
       };
     },
-    { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    { calories: 0, protein: 0, carbs: 0, fats: 0 },
   );
 
   const { data: recentLogs } = useQuery({
     queryKey: ["recent_logs_streak"],
     enabled: !!settings,
     queryFn: async () => {
-      const { data, error } = await import("@/integrations/supabase/client").then(m => 
-        m.supabase.from("daily_logs")
-          .select("date, creatine_taken, whey_taken, supplements_taken, meal_entries(id)")
-          .order("date", { ascending: false })
-          .limit(60) // Fetch more to ensure we find enough active days
-      );
+      const { data, error } =
+        await import("@/integrations/supabase/client").then(
+          (m) =>
+            m.supabase
+              .from("daily_logs")
+              .select(
+                "date, creatine_taken, whey_taken, supplements_taken, meal_entries(id)",
+              )
+              .order("date", { ascending: false })
+              .limit(60), // Fetch more to ensure we find enough active days
+        );
       if (error) throw error;
       return data;
     },
@@ -90,10 +100,14 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
   const streak = (() => {
     if (!recentLogs || recentLogs.length === 0) return 0;
-    
+
     // Filter for days that actually have activity
     const activeLogs = recentLogs.filter((log: any) => {
-      const hasSupps = log.creatine_taken || log.whey_taken || (log.supplements_taken && Object.keys(log.supplements_taken).length > 0);
+      const hasSupps =
+        log.creatine_taken ||
+        log.whey_taken ||
+        (log.supplements_taken &&
+          Object.keys(log.supplements_taken).length > 0);
       const hasMeals = log.meal_entries && log.meal_entries.length > 0;
       return hasSupps || hasMeals;
     });
@@ -102,23 +116,27 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Check if the most recent activity was today or yesterday
     const lastActiveDate = new Date(activeLogs[0].date);
     lastActiveDate.setHours(0, 0, 0, 0);
-    const diffDaysFromToday = Math.floor((today.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const diffDaysFromToday = Math.floor(
+      (today.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     // If no activity today OR yesterday, streak is dead
     if (diffDaysFromToday > 1) return 0;
 
     let count = 1; // We have at least one active day (today or yesterday)
     for (let i = 0; i < activeLogs.length - 1; i++) {
       const curr = new Date(activeLogs[i].date);
-      const prev = new Date(activeLogs[i+1].date);
+      const prev = new Date(activeLogs[i + 1].date);
       curr.setHours(0, 0, 0, 0);
       prev.setHours(0, 0, 0, 0);
-      
-      const diff = Math.floor((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+
+      const diff = Math.floor(
+        (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24),
+      );
       // If the gap between active days is exactly 1 day, the streak continues
       if (diff === 1) count++;
       else break;
@@ -136,31 +154,30 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const handleShareCard = async () => {
     if (!cardRef.current) return;
     setIsGenerating(true);
-    
-    // Give time for the off-screen card to render its fonts/SVGs
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    try {
-      // Try multiple CDN sources to ensure availability
-      // @ts-ignore - Dynamic CDN import
-      let module = await import(/* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11").catch(() => null);
-      if (!module) {
-        // @ts-ignore - Dynamic CDN import
-        module = await import(/* @vite-ignore */ "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm").catch(() => null);
-      }
-      
-      const toPng = module?.toPng;
-      
-      if (!toPng) {
-        toast({ 
-          title: "Setup in progress", 
-          description: "One-time setup is taking a moment. Please try again in 5 seconds.",
-          variant: "destructive"
-        });
-        return;
-      }
 
-      const dataUrl = await toPng(cardRef.current, {
+    // Ensure the logo image is fully loaded and decoded before capture
+    const logoImg = document.querySelector('img[src="/fitnutt-logo.png"]') as HTMLImageElement;
+    if (logoImg) {
+      try {
+        await logoImg.decode();
+      } catch (e) {
+        console.warn("Logo decoding failed or not supported, proceeding with timeout");
+      }
+    }
+
+    // Give time for the off-screen card to render its fonts/SVGs
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    try {
+      // Use dynamic import so it works whether installed locally OR pulling from CDN
+      const module = await import("html-to-image").catch(async () => {
+        // Fallback for CDN if local node_modules is still syncing
+        return await import(/* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11");
+      });
+
+      const toPngLocal = (module as any).toPng;
+
+      const dataUrl = await toPngLocal(cardRef.current, {
         width: 1080,
         height: 1920,
         pixelRatio: 1, // Keep it exactly 1080x1920
@@ -171,16 +188,18 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       });
 
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      
+
       if (isMobile && navigator.share) {
         const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], `fitnutt-progress-${today}.png`, { type: "image/png" });
-        
+        const file = new File([blob], `fitnutt-progress-${today}.png`, {
+          type: "image/png",
+        });
+
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
             title: "My FitNutt Progress",
-            text: "Just hit my macros for today. Join the grind! 🥩 #FitNutt",
+            text: "Just hit my macros for today. Join the grind! 💪🏻 #FitNutt",
           });
         } else {
           // Fallback if file sharing isn't supported on this specific mobile browser
@@ -188,7 +207,10 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           link.download = `fitnutt-progress-${today}.png`;
           link.href = dataUrl;
           link.click();
-          toast({ title: "Image Saved!", description: "Check your photo gallery to share!" });
+          toast({
+            title: "Image Saved!",
+            description: "Check your photo gallery to share!",
+          });
         }
       } else {
         // Direct download for desktop
@@ -196,11 +218,18 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         link.download = `fitnutt-progress-${today}.png`;
         link.href = dataUrl;
         link.click();
-        toast({ title: "Story Card Ready!", description: "Image downloaded to your device." });
+        toast({
+          title: "Story Card Ready!",
+          description: "Image downloaded to your device.",
+        });
       }
     } catch (err) {
       console.error("Export error:", err);
-      toast({ title: "Export Error", description: "Could not generate image. Try again in a moment.", variant: "destructive" });
+      toast({
+        title: "Export Error",
+        description: "Could not generate image. Try again in a moment.",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
       setIsShareOpen(false);
@@ -217,12 +246,12 @@ iOS - Share > Add to Homescreen
 Android - Browser Menu > Add to Homescreen > Install`;
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
+
     if (isMobile && navigator.share) {
       navigator.share({
         title: "Join FitNutt",
         text,
-        url: "https://fitnutt.netlify.app",
+        // URL removed here as it's already in the 'text' string and many apps append it twice
       });
     } else {
       navigator.clipboard.writeText(text);
@@ -239,18 +268,20 @@ Android - Browser Menu > Add to Homescreen > Install`;
     const s = settings as any;
     const today = new Date().toISOString().split("T")[0];
     const lastDate = s.last_logo_tap_date;
-    
+
     let newTaps = (s.logo_taps_count || 0) + 1;
     let newStreak = s.logo_tap_streak || 0;
-    
+
     // Streak logic
     if (!lastDate) {
       newStreak = 1;
     } else if (lastDate !== today) {
       const last = new Date(lastDate);
       const now = new Date(today);
-      const diffDays = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const diffDays = Math.floor(
+        (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
       if (diffDays === 1) {
         newStreak += 1;
       } else if (diffDays > 1) {
@@ -269,14 +300,18 @@ Android - Browser Menu > Add to Homescreen > Install`;
       const xpBoost = calculateXpForLevelJump(s.total_xp || 0, 1);
       updates.total_xp = (s.total_xp || 0) + xpBoost;
       updates.logo_easter_egg_triggered = true;
-      setEasterEggMessage("LEZZGOO! I love that energy! You've been pumping that logo like a pro. Keep it up, you just jumped a LEVEL! 💪");
-    } 
+      setEasterEggMessage(
+        "LEZZGOO! I love that energy! You've been pumping that logo like a pro. Keep it up, you just jumped a LEVEL! 💪",
+      );
+    }
     // Trigger 2: 5 Day Streak
     else if (newStreak === 5 && !s.streak_easter_egg_triggered) {
       const xpBoost = calculateXpForLevelJump(s.total_xp || 0, 5);
       updates.total_xp = (s.total_xp || 0) + xpBoost;
       updates.streak_easter_egg_triggered = true;
-      setEasterEggMessage("UNREAL CONSISTENCY! 5 days of absolute dedication. You're a genetic freak! I'm jumping you 5 LEVELS ahead. Stay hungry! 🔥");
+      setEasterEggMessage(
+        "UNREAL CONSISTENCY! 5 days of absolute dedication. You're a genetic freak! I'm jumping you 5 LEVELS ahead. Stay hungry! 🔥",
+      );
     }
 
     updateSettings.mutate(updates);
@@ -287,9 +322,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
       <div className="fixed inset-0 bg-background -z-[50]" />
       {isActive && <TutorialFlow onComplete={completeTutorial} />}
       {/* Glassy Top Nav */}
-      <header 
-        className="sticky top-0 left-0 right-0 z-50 w-full bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3 flex items-center justify-between"
-      >
+      <header className="sticky top-0 left-0 right-0 z-50 w-full bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AnimatedLogo className="h-8 w-8" onToggle={handleLogoToggle} />
           <span
@@ -299,7 +332,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
             FitNutt
           </span>
         </div>
-        <button 
+        <button
           onClick={() => setIsShareOpen(true)}
           className="p-2 -mr-2 text-muted-foreground hover:text-primary transition-colors"
           title="Share"
@@ -312,7 +345,9 @@ Android - Browser Menu > Add to Homescreen > Install`;
       <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
         <DialogContent className="w-[calc(100%-2.5rem)] max-w-[400px] rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Share Progress</DialogTitle>
+            <DialogTitle className="text-xl font-bold">
+              Share Progress
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <button
@@ -322,10 +357,16 @@ Android - Browser Menu > Add to Homescreen > Install`;
             >
               <div className="flex items-center gap-3 text-left">
                 <div className="p-2 bg-white/20 rounded-xl">
-                  {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
+                  {isGenerating ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-5 w-5" />
+                  )}
                 </div>
                 <div>
-                  <p className="font-black uppercase text-[10px] tracking-widest opacity-70">Story Style</p>
+                  <p className="font-black uppercase text-[10px] tracking-widest opacity-70">
+                    Story Style
+                  </p>
                   <p className="font-bold text-sm">Generate Social Card</p>
                 </div>
               </div>
@@ -341,8 +382,12 @@ Android - Browser Menu > Add to Homescreen > Install`;
                   <Copy className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Invite Pack</p>
-                  <p className="font-bold text-sm text-foreground">Copy Invite Link</p>
+                  <p className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">
+                    Invite Pack
+                  </p>
+                  <p className="font-bold text-sm text-foreground">
+                    Copy Invite Link
+                  </p>
                 </div>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -352,29 +397,35 @@ Android - Browser Menu > Add to Homescreen > Install`;
       </Dialog>
 
       {/* Easter Egg Dialog */}
-      <Dialog open={!!easterEggMessage} onOpenChange={(open) => !open && setEasterEggMessage(null)}>
+      <Dialog
+        open={!!easterEggMessage}
+        onOpenChange={(open) => !open && setEasterEggMessage(null)}
+      >
         <DialogContent className="w-[calc(100%-2.5rem)] max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-transparent">
-           <div className="bg-background/95 backdrop-blur-2xl p-8 relative">
-              <Nut3lla 
-                message={easterEggMessage}
-                position="center"
-                isDismissible={false}
-                className="w-full"
-              />
-              <div className="mt-8">
-                <Button 
-                  onClick={() => setEasterEggMessage(null)}
-                  className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20"
-                >
-                  LIGHT WEIGHT BABY! 🦾
-                </Button>
-              </div>
-           </div>
+          <div className="bg-background/95 backdrop-blur-2xl p-8 relative">
+            <Nut3lla
+              message={easterEggMessage}
+              position="center"
+              isDismissible={false}
+              className="w-full"
+            />
+            <div className="mt-8">
+              <Button
+                onClick={() => setEasterEggMessage(null)}
+                className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20"
+              >
+                LIGHT WEIGHT BABY! 🦾
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Off-screen Card for Generation */}
-      <div className="fixed left-[-9999px] top-4 overflow-hidden" style={{ minWidth: "1080px", minHeight: "1920px" }}>
+      <div
+        className="fixed left-[-9999px] top-4 overflow-hidden"
+        style={{ minWidth: "1080px", minHeight: "1920px" }}
+      >
         {(() => {
           const levelInfo = calculateLevel((settings as any)?.total_xp || 0);
           return (
@@ -399,7 +450,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
       {/* Global Motivational Tip Engine */}
       <Nut3llaTips />
 
-      <nav 
+      <nav
         className="fixed bottom-0 left-0 right-0 z-50 bg-background pb-[env(safe-area-inset-bottom)]"
         style={{ filter: "drop-shadow(0 -4px 16px rgba(0, 0, 0, 0.1))" }}
       >
