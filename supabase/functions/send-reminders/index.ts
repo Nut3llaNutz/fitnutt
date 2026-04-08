@@ -65,28 +65,52 @@ serve(async (req) => {
       startOfDay.setHours(0,0,0,0);
       const isoDate = startOfDay.toISOString().split('T')[0];
       
-      // Fetch today's log for the user
+      // Fetch today's log for the user including all activity indicators
       const { data: log } = await supabase
         .from('daily_logs')
-        .select('supplements_taken')
+        .select('id, creatine_taken, whey_taken, supplements_taken, completed_exercises')
         .eq('user_id', user.user_id)
         .eq('date', isoDate)
         .single();
         
-      const taken = log?.supplements_taken || {};
-      
-      // Filter out untaken supplements
-      const enabled = ((user.supplements || []) as any[]).filter(s => s.enabled);
-      const untaken = enabled.filter(s => !taken[s.id]);
-      
-      if (untaken.length === 0) continue;
+      const { count: mealCount } = await supabase
+        .from('meal_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('daily_log_id', log?.id || '00000000-0000-0000-0000-000000000000');
 
-      const names = untaken.map(s => s.name).join(", ");
+      const taken = log?.supplements_taken || {};
+      const completedExercises = log?.completed_exercises || [];
+      const hasMeals = (mealCount || 0) > 0;
+      const hasExercises = completedExercises.length > 0;
+      const hasCoreSupps = (log?.creatine_taken || log?.whey_taken);
+      const hasCustomSupps = Object.values(taken).some(v => v);
       
-      const payload = JSON.stringify({
-        title: "Don't forget: " + names,
-        body: ""
-      });
+      const isTotallyInactive = !hasMeals && !hasExercises && !hasCoreSupps && !hasCustomSupps;
+      
+      let payload;
+
+      if (isTotallyInactive) {
+        payload = JSON.stringify({
+          title: "Don't break your streak! ⚡",
+          body: "You haven't logged anything for today yet. Time to level up?"
+        });
+      } else {
+        // Run existing supplement reminder logic if they HAVE done something but missed supps
+        const enabled = ((user.supplements || []) as any[]).filter(s => s.enabled);
+        const untaken = enabled.filter(s => !taken[s.id]);
+        
+        // Add core supps to untaken if missing
+        if (enabled.some(s => s.id === 'creatine' && !log?.creatine_taken)) untaken.push({ name: 'Creatine' });
+        if (enabled.some(s => s.id === 'whey' && !log?.whey_taken)) untaken.push({ name: 'Whey' });
+
+        if (untaken.length === 0) continue;
+
+        const names = untaken.map(s => s.name).join(", ");
+        payload = JSON.stringify({
+          title: "Don't forget: " + names,
+          body: ""
+        });
+      }
 
       // Send to all their registered devices
       for (const sub of userSubs) {

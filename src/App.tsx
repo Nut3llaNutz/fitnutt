@@ -9,10 +9,10 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { TutorialProvider } from "@/contexts/TutorialContext";
 import { useSettings } from "@/hooks/useSettings";
 import Index from "./pages/Index";
-import DailyDiary from "./pages/DailyDiary";
 import FoodLibrary from "./pages/FoodLibrary";
 import Schedule from "./pages/Schedule";
 import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import BarcodeScanner from "./pages/BarcodeScanner";
@@ -112,14 +112,6 @@ const App = () => (
                     }
                   />
                   <Route
-                    path="/log"
-                    element={
-                      <ProtectedRoute>
-                        <DailyDiary />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
                     path="/foods"
                     element={
                       <ProtectedRoute>
@@ -140,6 +132,14 @@ const App = () => (
                     element={
                       <ProtectedRoute>
                         <Profile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute>
+                        <Admin />
                       </ProtectedRoute>
                     }
                   />

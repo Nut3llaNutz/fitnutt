@@ -46,6 +46,7 @@ export const getRankTitle = (level: number): string => {
 
 export const XP_REWARDS = {
   LOG_FOOD: 20,
+  LOG_SUPPLEMENT: 10,
   COMPLETE_EXERCISE: 50,
   DAILY_GOAL_MET: 100
 };

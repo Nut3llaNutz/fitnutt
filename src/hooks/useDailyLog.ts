@@ -42,27 +42,41 @@ export const useDailyLog = (date?: string) => {
   const toggleSupplement = useMutation({
     mutationFn: async (field: "creatine_taken" | "whey_taken") => {
       const log = await ensureLog();
+      const isNowTaken = !(log as any)[field];
       const { error } = await supabase
         .from("daily_logs")
-        .update({ [field]: !(log as any)[field] })
+        .update({ [field]: isNowTaken })
         .eq("id", log.id);
       if (error) throw error;
+
+      // Award or remove XP
+      await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["daily_log", d] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+    },
   });
 
   const toggleCustomSupplement = useMutation({
     mutationFn: async (supplementId: string) => {
       const log = await ensureLog();
       const taken = ((log as any).supplements_taken as Record<string, boolean>) || {};
-      const newTaken = { ...taken, [supplementId]: !taken[supplementId] };
+      const isNowTaken = !taken[supplementId];
+      const newTaken = { ...taken, [supplementId]: isNowTaken };
       const { error } = await supabase
         .from("daily_logs")
         .update({ supplements_taken: newTaken } as any)
         .eq("id", log.id);
       if (error) throw error;
+
+      // Award or remove XP
+      await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["daily_log", d] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+    },
   });
 
   const toggleExercise = useMutation({
@@ -85,7 +99,10 @@ export const useDailyLog = (date?: string) => {
       // Award or remove XP
       await addXP.mutateAsync(isDone ? -XP_REWARDS.COMPLETE_EXERCISE : XP_REWARDS.COMPLETE_EXERCISE);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["daily_log", d] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+    },
   });
 
   return { 

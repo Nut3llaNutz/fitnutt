@@ -118,35 +118,20 @@ const Fuel = () => {
 
   const handleLogDirectly = async (mealType: string) => {
     const logData = await ensureLog();
-    let targetFoodId = editId;
     
-    if (!editId) {
-      const { data, error } = await supabase.from("foods").insert({
-        name: form.name,
-        serving_size: Number(form.serving_size) || 0,
-        serving_unit: form.serving_unit,
-        calories: Number(form.calories) || 0,
-        protein: Number(form.protein) || 0,
-        carbs: Number(form.carbs) || 0,
-        fats: Number(form.fats) || 0,
-        category: form.category,
-        is_veg: form.is_veg,
-        source: "user",
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-      }).select().single();
-      
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        return;
-      }
-      targetFoodId = data.id;
-    }
-
+    // Log directly to the meal entry WITHOUT creating a library food record
     addEntry.mutate({
       daily_log_id: logData.id,
       meal_type: mealType,
-      food_id: targetFoodId!,
-      quantity: 1, 
+      food_id: editId || null, // Keep the ID if we're editing an existing library food, but it's optional now
+      quantity: 1,
+      food_name: form.name,
+      calories: Number(form.calories) || 0,
+      protein: Number(form.protein) || 0,
+      carbs: Number(form.carbs) || 0,
+      fats: Number(form.fats) || 0,
+      serving_size: Number(form.serving_size) || 100,
+      serving_unit: form.serving_unit,
     });
 
     toast({ title: `Logged to ${mealType}!` });
@@ -161,6 +146,14 @@ const Fuel = () => {
       meal_type: logForm.mealType,
       food_id: loggingFood.id,
       quantity: parseFloat(logForm.quantity) || 1,
+      // Snapshot the current nutrition data from the library
+      food_name: loggingFood.name,
+      calories: loggingFood.calories,
+      protein: loggingFood.protein,
+      carbs: loggingFood.carbs,
+      fats: loggingFood.fats,
+      serving_size: loggingFood.serving_size,
+      serving_unit: loggingFood.serving_unit,
     });
     toast({ title: `${loggingFood.name} logged!` });
     setLoggingFood(null);

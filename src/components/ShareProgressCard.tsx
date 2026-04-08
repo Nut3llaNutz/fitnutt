@@ -18,11 +18,12 @@ interface ShareProgressCardProps {
   rank: string;
   streak: number;
   userName: string;
+  date?: string;
 }
 
 export const ShareProgressCard = forwardRef<HTMLDivElement, ShareProgressCardProps>(
-  ({ totals, targets, pumpLevel, rank, streak, userName }, ref) => {
-    const today = new Date().toLocaleDateString(undefined, {
+  ({ totals, targets, pumpLevel, rank, streak, userName, date }, ref) => {
+    const today = (date ? new Date(date + "T12:00:00") : new Date()).toLocaleDateString(undefined, {
       weekday: "long",
       month: "long",
       day: "numeric",
@@ -44,7 +45,7 @@ export const ShareProgressCard = forwardRef<HTMLDivElement, ShareProgressCardPro
               />
               <circle
                 cx={size / 2} cy={size / 2} r={radius}
-                fill="none" stroke={color} strokeWidth={size * 0.08}
+                fill="none" stroke={current >= target ? "#22c55e" : color} strokeWidth={size * 0.08}
                 strokeLinecap="round" strokeDasharray={circumference}
                 strokeDashoffset={offset}
               />

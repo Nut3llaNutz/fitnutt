@@ -46,7 +46,13 @@ const rightNav = [
   { path: "/profile", icon: Settings, label: "Settings" },
 ];
 
-export const Layout = ({ children }: { children: ReactNode }) => {
+export const Layout = ({
+  children,
+  selectedDate,
+}: {
+  children: ReactNode;
+  selectedDate?: string;
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
@@ -59,8 +65,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const [easterEggMessage, setEasterEggMessage] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date().toISOString().split("T")[0];
-  const { log } = useDailyLog(today);
+  const displayDate = selectedDate || new Date().toISOString().split("T")[0];
+  const { log } = useDailyLog(displayDate);
   const { entries } = useMealEntries(log?.id);
   const { settings } = useSettings();
 
@@ -155,22 +161,24 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     if (!cardRef.current) return;
     setIsGenerating(true);
 
-    // Ensure the logo image is fully loaded and decoded before capture
-    const logoImg = document.querySelector('img[src="/fitnutt-logo.png"]') as HTMLImageElement;
-    if (logoImg) {
-      try {
-        await logoImg.decode();
-      } catch (e) {
-        console.warn("Logo decoding failed or not supported, proceeding with timeout");
-      }
-    }
+    // Ensure all images in the card are loaded and decoded
+    const images = Array.from(cardRef.current.querySelectorAll("img"));
+    await Promise.all(
+      images.map(async (img) => {
+        if (img.complete) return;
+        return new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+      }),
+    );
 
-    // Give time for the off-screen card to render its fonts/SVGs
+    // Final small delay to ensure any layout shifts or lazy-loaded fonts stabilized
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     try {
       // Use dynamic import so it works whether installed locally OR pulling from CDN
-      const module = await import("html-to-image").catch(async () => {
+      const module = await import(/* @vite-ignore */ "html-to-image").catch(async () => {
         // Fallback for CDN if local node_modules is still syncing
         return await import(/* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11");
       });
@@ -191,7 +199,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
       if (isMobile && navigator.share) {
         const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], `fitnutt-progress-${today}.png`, {
+        const file = new File([blob], `fitnutt-progress-${displayDate}.png`, {
           type: "image/png",
         });
 
@@ -199,12 +207,12 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           await navigator.share({
             files: [file],
             title: "My FitNutt Progress",
-            text: "Just hit my macros for today. Join the grind! 💪🏻 #FitNutt",
+            text: `Just hit my macros for ${displayDate === new Date().toISOString().split("T")[0] ? "today" : displayDate}. Join the grind! 💪🏻 #FitNutt`,
           });
         } else {
           // Fallback if file sharing isn't supported on this specific mobile browser
           const link = document.createElement("a");
-          link.download = `fitnutt-progress-${today}.png`;
+          link.download = `fitnutt-progress-${displayDate}.png`;
           link.href = dataUrl;
           link.click();
           toast({
@@ -215,7 +223,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       } else {
         // Direct download for desktop
         const link = document.createElement("a");
-        link.download = `fitnutt-progress-${today}.png`;
+        link.download = `fitnutt-progress-${displayDate}.png`;
         link.href = dataUrl;
         link.click();
         toast({
@@ -223,7 +231,13 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           description: "Image downloaded to your device.",
         });
       }
-    } catch (err) {
+    } catch (err: any) {
+      // If the user cancelled the share (on mobile), common on iPhone, don't show an error
+      if (err.name === "AbortError") {
+        console.log("Share aborted by user");
+        return;
+      }
+
       console.error("Export error:", err);
       toast({
         title: "Export Error",
@@ -437,6 +451,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
               rank={levelInfo.rankTitle}
               streak={streak}
               userName="Member"
+              date={displayDate}
             />
           );
         })()}

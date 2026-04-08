@@ -93,26 +93,47 @@ export type Database = {
         Row: {
           created_at: string
           daily_log_id: string
-          food_id: string
+          food_id: string | null
           id: string
           meal_type: string
           quantity: number
+          food_name: string
+          calories: number
+          protein: number
+          carbs: number
+          fats: number
+          serving_size: number
+          serving_unit: string
         }
         Insert: {
           created_at?: string
           daily_log_id: string
-          food_id: string
+          food_id?: string | null
           id?: string
           meal_type: string
           quantity?: number
+          food_name: string
+          calories?: number
+          protein?: number
+          carbs?: number
+          fats?: number
+          serving_size?: number
+          serving_unit?: string
         }
         Update: {
           created_at?: string
           daily_log_id?: string
-          food_id?: string
+          food_id?: string | null
           id?: string
           meal_type?: string
           quantity?: number
+          food_name?: string
+          calories?: number
+          protein?: number
+          carbs?: number
+          fats?: number
+          serving_size?: number
+          serving_unit?: string
         }
         Relationships: [
           {
@@ -229,6 +250,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_users: number
+          total_logs: number
+          active_today: number
+          total_calories_today: number
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

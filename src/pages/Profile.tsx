@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { useSettings, Supplement } from "@/hooks/useSettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +22,7 @@ const Profile = () => {
   const { isSubscribed, isSupported, permission, subscribe, unsubscribe } =
     usePushSubscription();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     calorie_target: 2750,
@@ -152,6 +154,14 @@ const Profile = () => {
         <div className="bg-card rounded-xl p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Signed in as</p>
           <p className="text-card-foreground font-medium">{user?.email}</p>
+          {user?.email === "yuvrajbhardwaj2005yb@gmail.com" && (
+            <Button 
+              onClick={() => navigate("/admin")} 
+              className="w-full mt-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold border-none shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              👑 ADMIN DASHBOARD
+            </Button>
+          )}
         </div>
 
         {/* Theme and Nut3lla Tips */}

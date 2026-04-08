@@ -57,13 +57,22 @@ export const useSettings = () => {
   const addXP = useMutation({
     mutationFn: async (amount: number) => {
       const currentXp = (settingsQuery.data as any)?.total_xp || 0;
+      const newTotal = Math.max(0, currentXp + amount);
+      
+      // Don't issue an update if the XP wouldn't change (e.g., trying to subtract from already 0)
+      if (newTotal === currentXp && amount !== 0) return;
+
       const { error } = await supabase
         .from("user_settings")
-        .update({ total_xp: currentXp + amount } as any)
+        .update({ total_xp: newTotal } as any)
         .eq("user_id", user!.id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user_settings"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user_settings"] });
+      // Invalidate streak whenever XP changes, as XP gain/loss usually implies an activity change
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+    },
   });
 
   return { settings: settingsQuery.data, isLoading: settingsQuery.isLoading, updateSettings, addXP };

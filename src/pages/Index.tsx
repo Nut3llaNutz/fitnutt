@@ -80,16 +80,12 @@ const Index = () => {
   const supplementsTaken = ((log as any)?.supplements_taken as Record<string, boolean>) || {};
 
   const totals = entries.reduce(
-    (acc, entry) => {
-      const food = (entry as any).foods;
-      if (!food) return acc;
-      return {
-        calories: acc.calories + food.calories * entry.quantity,
-        protein: acc.protein + food.protein * entry.quantity,
-        carbs: acc.carbs + food.carbs * entry.quantity,
-        fats: acc.fats + food.fats * entry.quantity,
-      };
-    },
+    (acc, entry) => ({
+      calories: acc.calories + (entry.calories || 0) * entry.quantity,
+      protein: acc.protein + (entry.protein || 0) * entry.quantity,
+      carbs: acc.carbs + (entry.carbs || 0) * entry.quantity,
+      fats: acc.fats + (entry.fats || 0) * entry.quantity,
+    }),
     { calories: 0, protein: 0, carbs: 0, fats: 0 }
   );
 
@@ -120,7 +116,7 @@ const Index = () => {
 
     const { data: srcEntries } = await supabase
       .from("meal_entries")
-      .select("meal_type, food_id, quantity")
+      .select("meal_type, food_id, quantity, food_name, calories, protein, carbs, fats, serving_size, serving_unit")
       .eq("daily_log_id", srcLog.id);
 
     if (!srcEntries || srcEntries.length === 0) {
@@ -138,6 +134,13 @@ const Index = () => {
       meal_type: e.meal_type,
       food_id: e.food_id,
       quantity: e.quantity,
+      food_name: e.food_name,
+      calories: e.calories,
+      protein: e.protein,
+      carbs: e.carbs,
+      fats: e.fats,
+      serving_size: e.serving_size,
+      serving_unit: e.serving_unit,
     }));
 
     const { error } = await supabase.from("meal_entries").insert(inserts);
@@ -156,7 +159,7 @@ const Index = () => {
 
   if (logLoading || settingsLoading) {
     return (
-      <Layout>
+      <Layout selectedDate={currentDate}>
         <div className="space-y-6">
           <Skeleton className="h-8 w-48" />
           <div className="flex justify-around">
@@ -170,21 +173,19 @@ const Index = () => {
 
   const macroDetails = entries
     .filter((e) => {
-      const food = (e as any).foods;
-      if (!food || !expandedMacro) return false;
-      const key = expandedMacro.toLowerCase() as keyof typeof food;
-      return (food[key] || 0) > 0;
+      if (!expandedMacro) return false;
+      const key = expandedMacro.toLowerCase() as keyof typeof e;
+      return (e[key] as number || 0) > 0;
     })
     .map((e) => {
-      const food = (e as any).foods;
-      const key = expandedMacro!.toLowerCase() as keyof typeof food;
-      const amount = (food[key] as number) * e.quantity;
-      return { name: food.name, amount };
+      const key = expandedMacro!.toLowerCase() as keyof typeof e;
+      const amount = (e[key] as number) * e.quantity;
+      return { name: e.food_name, amount };
     })
-    .sort((a, b) => b.amount - a.amount);
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0));
 
   return (
-    <Layout>
+    <Layout selectedDate={currentDate}>
       <div className="space-y-6">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1">
@@ -337,23 +338,32 @@ const Index = () => {
                         onClick={() => setDeletingEntryId(deletingEntryId === item.id ? null : item.id)}
                         className="flex justify-between items-center text-sm border-l-2 border-primary/20 pl-3 cursor-pointer group hover:border-primary/50 transition-colors"
                       >
-                        <span className="text-foreground font-medium">{(item as any).foods?.name}</span>
+                        <span className="text-foreground font-medium">{item.food_name}</span>
                         <div className="flex items-center gap-3 relative h-6 w-24 justify-end overflow-hidden">
                           <div className={`flex items-center gap-3 transition-opacity duration-300 ${deletingEntryId === item.id ? "opacity-0" : "opacity-100"}`}>
                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">×{item.quantity}</span>
-                            <span className="text-[11px] font-black italic text-primary/70">{Math.round(((item as any).foods?.calories || 0) * item.quantity)} KCAL</span>
+                            <span className="text-[11px] font-black italic text-primary/70">{Math.round((item.calories || 0) * item.quantity)} KCAL</span>
                           </div>
                           <button
+                            disabled={removeEntry.isPending}
                             onClick={(e) => {
                               e.stopPropagation();
-                              removeEntry.mutate(item.id);
+                              removeEntry.mutate(item.id, {
+                                onSuccess: () => {
+                                  setDeletingEntryId(null);
+                                  toast({
+                                    title: "Fuel Removed",
+                                    description: "Your macros have been updated.",
+                                  });
+                                }
+                              });
                             }}
                             className={`absolute right-0 p-2 flex items-center justify-center text-red-500 hover:text-red-400 transition-all duration-500 transform ${
                               deletingEntryId === item.id ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-                            }`}
+                            } ${removeEntry.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
                             title="Delete"
                           >
-                            <Trash2 className="h-5 w-5" />
+                            <Trash2 className={`h-5 w-5 ${removeEntry.isPending ? "animate-pulse" : ""}`} />
                           </button>
                         </div>
                       </div>

@@ -27,16 +27,12 @@ export const TutorialProvider = ({ children }: { children: React.ReactNode }) =>
   }, [settings]);
 
   const setNextStep = useCallback(() => {
-    // Stage 1: Dashboard (Done at step 1) -> Navigate to Diary
+    // Stage 1: Dashboard (Done at step 1) -> Navigate to Foods
     if (step === 1) {
-      navigate('/log');
-    } 
-    // Stage 2: Diary (Done at step 2) -> Navigate to Foods
-    else if (step === 2) {
       navigate('/foods');
     }
-    // Stage 3: Foods (Done at step 3) -> Navigate back to Dashboard for final form
-    else if (step === 3) {
+    // Stage 2: Foods (Done at step 2) -> Navigate back to Dashboard for final form
+    else if (step === 2) {
       navigate('/');
     }
     
