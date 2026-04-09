@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { TutorialProvider } from "@/contexts/TutorialContext";
 import { useSettings } from "@/hooks/useSettings";
+import { DateProvider } from "@/contexts/DateContext";
+import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import FoodLibrary from "./pages/FoodLibrary";
 import Schedule from "./pages/Schedule";
@@ -21,9 +23,9 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/auth" replace />;
+const ProtectedRoute = ({ children, allowGuest = false }: { children: React.ReactNode, allowGuest?: boolean }) => {
+  const { user, isGuest } = useAuth();
+  if (!user && !allowGuest) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 };
 
@@ -99,69 +101,80 @@ const App = () => (
           <Sonner />
           <GlobalSplash>
             <BrowserRouter>
-              <TutorialProvider>
-                <Routes>
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Index />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/foods"
-                    element={
-                      <ProtectedRoute>
-                        <FoodLibrary />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/schedule"
-                    element={
-                      <ProtectedRoute>
-                        <Schedule />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <ProtectedRoute>
-                        <Profile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin"
-                    element={
-                      <ProtectedRoute>
-                        <Admin />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/pump-rank"
-                    element={
-                      <ProtectedRoute>
-                        <PumpRank />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/scan"
-                    element={
-                      <ProtectedRoute>
-                        <BarcodeScanner />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </TutorialProvider>
+              <DateProvider>
+                <TutorialProvider>
+                  <Routes>
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route
+                      path="*"
+                      element={
+                        <Layout>
+                          <Routes>
+                            <Route
+                              path="/"
+                              element={
+                                <ProtectedRoute allowGuest>
+                                  <Index />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/foods"
+                              element={
+                                <ProtectedRoute allowGuest>
+                                  <FoodLibrary />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/schedule"
+                              element={
+                                <ProtectedRoute allowGuest>
+                                  <Schedule />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/profile"
+                              element={
+                                <ProtectedRoute>
+                                  <Profile />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/admin"
+                              element={
+                                <ProtectedRoute>
+                                  <Admin />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/pump-rank"
+                              element={
+                                <ProtectedRoute allowGuest>
+                                  <PumpRank />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route
+                              path="/scan"
+                              element={
+                                <ProtectedRoute allowGuest>
+                                  <BarcodeScanner />
+                                </ProtectedRoute>
+                              }
+                            />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </Layout>
+                      }
+                    />
+                  </Routes>
+                </TutorialProvider>
+              </DateProvider>
             </BrowserRouter>
           </GlobalSplash>
         </TooltipProvider>

@@ -250,14 +250,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_admin_stats: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          total_users: number
-          total_logs: number
-          active_today: number
-          total_calories_today: number
+      get_admin_detailed_stats: {
+        Args: {
+          p_timeframe?: string
         }
+        Returns: {
+          summary: {
+            total_users: number
+            total_logs_all_time: number
+            total_logs_today: number
+            total_calories_all_time: number
+            total_calories_today: number
+            active_residents_today: number
+            active_guests_today: number
+            total_guests_ever: number
+          }
+          trends: {
+            date: string
+            users: number
+            logs: number
+          }[]
+          ranks: {
+            rank: string
+            count: number
+          }[]
+          top_items: {
+            name: string
+            count: number
+          }[]
+        }
+      }
+      track_guest_session: {
+        Args: {
+          p_fingerprint: string
+        }
+        Returns: void
       }
       has_role: {
         Args: {

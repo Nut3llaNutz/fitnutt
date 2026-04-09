@@ -23,7 +23,7 @@ export const useFoods = () => {
   const queryClient = useQueryClient();
 
   const foodsQuery = useQuery({
-    queryKey: ["foods"],
+    queryKey: ["foods", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -42,12 +42,13 @@ export const useFoods = () => {
       calories: number; protein: number; carbs: number; fats: number;
       category: string; is_veg: boolean; source?: string; barcode?: string;
     }) => {
-      const { error } = await supabase.from("foods").insert({
+      const { data, error } = await supabase.from("foods").insert({
         ...food,
         source: food.source || "user",
         user_id: user!.id,
-      });
+      }).select().single();
       if (error) throw error;
+      return data as unknown as Food;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["foods"] }),
   });
@@ -58,8 +59,14 @@ export const useFoods = () => {
       calories: number; protein: number; carbs: number; fats: number;
       category: string; is_veg: boolean;
     }) => {
-      const { error } = await supabase.from("foods").update(food).eq("id", id);
+      const { data, error } = await supabase
+        .from("foods")
+        .update(food)
+        .eq("id", id)
+        .select()
+        .single();
       if (error) throw error;
+      return data as unknown as Food;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["foods"] }),
   });

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Layout } from "@/components/Layout";
 import { usePlaybook } from "@/hooks/usePlaybook";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { PumpLevelCard } from "@/components/PumpLevelCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { Nut3llaPrompt } from "@/components/Nut3llaPrompt";
 import { Dumbbell, Pencil, Trash2, Plus, Check, RotateCcw, CheckCircle2 } from "lucide-react";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -14,7 +15,10 @@ const Schedule = () => {
   const currentDayName = days[todayIndex];
   const [selected, setSelected] = useState(days[todayIndex]);
   const [editMode, setEditMode] = useState(false);
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   const [newExercise, setNewExercise] = useState({ name: "", sets: "" });
+
+  const { isGuest } = useAuth();
 
   const { schedule, updateDayTitle, addExercise, updateExercise, deleteExercise, resetToDefault } = usePlaybook();
   const { log, toggleExercise } = useDailyLog();
@@ -42,18 +46,33 @@ const Schedule = () => {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">The Playbook</h1>
-          <div className="flex gap-2 text-primary">
+    <div className="space-y-6">
+        <div className="flex items-center justify-between px-1">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">The Playbook</h1>
+          <div className="flex gap-2">
             {editMode && (
-              <Button size="sm" variant="ghost" onClick={handleReset} className="text-destructive hover:text-destructive px-2">
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                onClick={handleReset} 
+                className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-xl"
+              >
                 <RotateCcw className="h-4 w-4" />
               </Button>
             )}
-            <Button size="sm" variant={editMode ? "default" : "outline"} onClick={() => setEditMode(!editMode)}>
-              {editMode ? <><Check className="h-4 w-4 mr-1" />Done</> : <><Pencil className="h-4 w-4 mr-1" />Edit</>}
+            <Button 
+                size="icon" 
+                variant="outline" 
+                onClick={() => {
+                    if (isGuest) {
+                        setShowGuestPrompt(true);
+                    } else {
+                        setEditMode(!editMode);
+                    }
+                }}
+                className="h-9 w-9 rounded-xl border-primary/20 bg-background/50 backdrop-blur-sm transition-all active:scale-95 shadow-lg shadow-black/5 text-primary"
+            >
+              {editMode ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
             </Button>
           </div>
         </div>
@@ -200,8 +219,14 @@ const Schedule = () => {
             )}
           </div>
         </div>
-      </div>
-    </Layout>
+
+      {showGuestPrompt && (
+        <Nut3llaPrompt 
+          description="Followin' the protocol is smart, but customize your own path requires you to be a Resident. Sign up to save your own custom routines."
+          onClose={() => setShowGuestPrompt(false)}
+        />
+      )}
+    </div>
   );
 };
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Layout } from "@/components/Layout";
+import { useDate } from "@/contexts/DateContext";
 import { TutorialFlow } from "@/components/TutorialFlow";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
@@ -56,7 +56,7 @@ const mealTypeConfig: Record<string, { label: string; icon: React.ElementType }>
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 const Index = () => {
-  const [currentDate, setCurrentDate] = useState(todayStr());
+  const { currentDate, setCurrentDate } = useDate();
   const { log, isLoading: logLoading, toggleCustomSupplement, ensureLog } = useDailyLog(currentDate);
   const { entries, isLoading: entriesLoading, removeEntry } = useMealEntries(log?.id);
   const { settings, isLoading: settingsLoading } = useSettings();
@@ -159,15 +159,13 @@ const Index = () => {
 
   if (logLoading || settingsLoading) {
     return (
-      <Layout selectedDate={currentDate}>
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-48" />
-          <div className="flex justify-around">
-            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 w-20 rounded-full" />)}
-          </div>
-          <Skeleton className="h-24 w-full rounded-xl" />
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="flex justify-around">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 w-20 rounded-full" />)}
         </div>
-      </Layout>
+        <Skeleton className="h-24 w-full rounded-xl" />
+      </div>
     );
   }
 
@@ -185,8 +183,7 @@ const Index = () => {
     .sort((a, b) => (b.amount || 0) - (a.amount || 0));
 
   return (
-    <Layout selectedDate={currentDate}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1">
             <Button
@@ -255,7 +252,7 @@ const Index = () => {
                 {Math.round(totals[expandedMacro.toLowerCase() as keyof typeof totals])} / {targets[expandedMacro.toLowerCase() as keyof typeof targets]} {expandedMacro === "Calories" ? "KCAL" : "G"}
               </div>
             </div>
-            <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-3 pr-1">
               {macroDetails.length > 0 ? (
                 macroDetails.map((m, idx) => (
                   <div key={idx} className="flex justify-between items-center group">
@@ -397,8 +394,7 @@ const Index = () => {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-    </Layout>
+    </div>
   );
 };
 

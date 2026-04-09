@@ -37,11 +37,13 @@ export const AnimatedLogo = ({
         src="/fitnutt-logo.png"
         alt="FitNutt Up"
         className={`absolute inset-0 animate-logo-pump-up ${className}`}
+        style={{ willChange: "transform, opacity" }}
       />
       <img
         src="/fitnutt-logo-down.png"
         alt="FitNutt Down"
         className={`absolute inset-0 animate-logo-pump-down ${className}`}
+        style={{ willChange: "transform, opacity" }}
       />
     </div>
   );

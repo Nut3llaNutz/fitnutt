@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ScanBarcode, RotateCcw, CheckCircle2, Loader2, AlertTriangle, Keyboard, Camera } from "lucide-react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { useAuth } from "@/contexts/AuthContext";
+import { Nut3llaPrompt } from "@/components/Nut3llaPrompt";
 
 interface FoodForm {
   name: string;
@@ -23,6 +25,8 @@ const BarcodeScanner = () => {
   const navigate = useNavigate();
   const { addFood } = useFoods();
   const { toast } = useToast();
+  const { isGuest } = useAuth();
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scanState, setScanState] = useState<ScanState>("scanning");
@@ -129,6 +133,11 @@ const BarcodeScanner = () => {
   }, []);
 
   const handleSave = () => {
+    if (isGuest) {
+      setShowGuestPrompt(true);
+      return;
+    }
+
     addFood.mutate(
       {
         name: form.name,
@@ -152,15 +161,14 @@ const BarcodeScanner = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => { stopScanner(); navigate("/foods"); }} className="text-muted-foreground hover:text-foreground transition-colors">
+    <div className="flex flex-col space-y-4">
+      {/* Internal Page Header */}
+      <div className="flex items-center gap-3 px-1 pt-2">
+        <button onClick={() => { stopScanner(); navigate("/foods"); }} className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <span className="font-bold text-lg text-foreground" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-          Barcode Scanner
-        </span>
-      </header>
+        <h1 className="text-xl font-bold tracking-tight">Barcode Scanner</h1>
+      </div>
 
       <main className="flex-1 flex flex-col items-center justify-start pt-4 px-4 pb-8 max-w-lg mx-auto w-full space-y-4">
 
@@ -338,6 +346,13 @@ const BarcodeScanner = () => {
           </div>
         )}
       </main>
+
+      {showGuestPrompt && (
+        <Nut3llaPrompt 
+          description="You can scan anything to check its fuel content, but to save it to your permanent library, you'll need to join the Nut3lla Protocol."
+          onClose={() => setShowGuestPrompt(false)}
+        />
+      )}
     </div>
   );
 };

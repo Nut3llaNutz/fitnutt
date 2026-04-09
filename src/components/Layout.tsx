@@ -1,4 +1,4 @@
-import { ReactNode, useState, useRef } from "react";
+import { ReactNode, useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +18,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { AnimatedLogo } from "./AnimatedLogo";
 import { Nut3llaTips } from "./Nut3llaTips";
+import { supabase } from "@/integrations/supabase/client";
 import { TutorialFlow } from "./TutorialFlow";
 import { useTutorial } from "@/contexts/TutorialContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShareProgressCard } from "./ShareProgressCard";
 import { calculateLevel, calculateXpForLevelJump } from "@/lib/gamification";
 import { Nut3lla } from "./Nut3lla";
+import { useDate } from "@/contexts/DateContext";
 
 const leftNav = [
   { path: "/", icon: Home, label: "Home" },
@@ -48,44 +50,80 @@ const rightNav = [
 
 export const Layout = ({
   children,
-  selectedDate,
 }: {
   children: ReactNode;
-  selectedDate?: string;
 }) => {
+  const { currentDate: globalDate } = useDate();
   const location = useLocation();
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
   const { isActive, completeTutorial } = useTutorial();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { toast } = useToast();
 
-  const [isShareOpen, setIsShareOpen] = useState(false);
+   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [easterEggMessage, setEasterEggMessage] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const displayDate = selectedDate || new Date().toISOString().split("T")[0];
+  const displayDate = globalDate || new Date().toISOString().split("T")[0];
   const { log } = useDailyLog(displayDate);
   const { entries } = useMealEntries(log?.id);
   const { settings } = useSettings();
 
-  const totals = entries.reduce(
-    (acc, entry) => {
-      const food = (entry as any).foods;
-      if (!food) return acc;
-      return {
-        calories: acc.calories + food.calories * entry.quantity,
-        protein: acc.protein + food.protein * entry.quantity,
-        carbs: acc.carbs + food.carbs * entry.quantity,
-        fats: acc.fats + food.fats * entry.quantity,
+  // Pre-load logo as Base64 to prevent iOS Safari from missing it during capture
+
+  useEffect(() => {
+    const preloadLogo = async () => {
+      try {
+        const response = await fetch("/fitnutt-logo.png");
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoDataUrl(reader.result as string);
+        };
+        reader.readAsDataURL(blob);
+      } catch (err) {
+        console.error("Logo preload failed:", err);
+      }
+    };
+    preloadLogo();
+  }, []);
+
+  // Guest Session Tracking
+  useEffect(() => {
+    if (isGuest) {
+      const trackGuest = async () => {
+        let fingerprint = localStorage.getItem("fitnutt_guest_id");
+        if (!fingerprint) {
+          fingerprint = crypto.randomUUID();
+          localStorage.setItem("fitnutt_guest_id", fingerprint);
+        }
+        
+        // Use a session-length key to only ping once per browser load
+        const sessionPinged = sessionStorage.getItem("guest_ping_done");
+        if (!sessionPinged) {
+          await supabase.rpc("track_guest_session", { p_fingerprint: fingerprint });
+          sessionStorage.setItem("guest_ping_done", "true");
+        }
       };
-    },
+      trackGuest();
+    }
+  }, [isGuest]);
+
+  const totals = entries.reduce(
+    (acc, entry) => ({
+      calories: acc.calories + (entry.calories || 0) * entry.quantity,
+      protein: acc.protein + (entry.protein || 0) * entry.quantity,
+      carbs: acc.carbs + (entry.carbs || 0) * entry.quantity,
+      fats: acc.fats + (entry.fats || 0) * entry.quantity,
+    }),
     { calories: 0, protein: 0, carbs: 0, fats: 0 },
   );
 
   const { data: recentLogs } = useQuery({
-    queryKey: ["recent_logs_streak"],
+    queryKey: ["recent_logs_streak", user?.id],
     enabled: !!settings,
     queryFn: async () => {
       const { data, error } =
@@ -183,7 +221,15 @@ export const Layout = ({
         return await import(/* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11");
       });
 
-      const toPngLocal = (module as any).toPng;
+       const toPngLocal = (module as any).toPng;
+
+      // iOS Safari "Warm up" - The first call often fails to render images properly
+      // By calling it once and ignoring the result, we force the browser to paint the buffer.
+      try {
+        await toPngLocal(cardRef.current, { cacheBust: true });
+      } catch (e) {
+        // Silently ignore warmup errors
+      }
 
       const dataUrl = await toPngLocal(cardRef.current, {
         width: 1080,
@@ -332,27 +378,29 @@ Android - Browser Menu > Add to Homescreen > Install`;
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col w-full relative">
+    <div className="h-svh overflow-hidden bg-background w-full relative">
       <div className="fixed inset-0 bg-background -z-[50]" />
       {isActive && <TutorialFlow onComplete={completeTutorial} />}
       {/* Glassy Top Nav */}
-      <header className="sticky top-0 left-0 right-0 z-50 w-full bg-background/80 backdrop-blur-lg border-b border-border px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <AnimatedLogo className="h-8 w-8" onToggle={handleLogoToggle} />
-          <span
-            className="font-bold text-lg text-foreground"
-            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between pointer-events-auto">
+          <div className="flex items-center gap-2">
+            <AnimatedLogo className="h-8 w-8" onToggle={handleLogoToggle} />
+            <span
+              className="font-bold text-lg text-foreground"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              FitNutt
+            </span>
+          </div>
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="p-2 -mr-2 text-muted-foreground hover:text-primary transition-colors"
+            title="Share"
           >
-            FitNutt
-          </span>
+            <Share2 className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          onClick={() => setIsShareOpen(true)}
-          className="p-2 -mr-2 text-muted-foreground hover:text-primary transition-colors"
-          title="Share"
-        >
-          <Share2 className="h-5 w-5" />
-        </button>
       </header>
 
       {/* Share Progress Dialog */}
@@ -443,7 +491,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
         {(() => {
           const levelInfo = calculateLevel((settings as any)?.total_xp || 0);
           return (
-            <ShareProgressCard
+             <ShareProgressCard
               ref={cardRef}
               totals={totals}
               targets={targets}
@@ -452,24 +500,27 @@ Android - Browser Menu > Add to Homescreen > Install`;
               streak={streak}
               userName="Member"
               date={displayDate}
+              logoUrl={logoDataUrl || "/fitnutt-logo.png"}
             />
           );
         })()}
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] max-w-lg mx-auto w-full">
-        {children}
+      {/* Main Content Area - This is where the scroll happens */}
+      <main className="h-full overflow-y-auto w-full scroll-smooth">
+        <div className="max-w-md mx-auto w-full px-4 pt-20 pb-[calc(8rem+env(safe-area-inset-bottom))]">
+          {children}
+        </div>
       </main>
 
       {/* Global Motivational Tip Engine */}
       <Nut3llaTips />
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background pb-[env(safe-area-inset-bottom)]"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background pb-[env(safe-area-inset-bottom)] gpu-layer"
         style={{ filter: "drop-shadow(0 -4px 16px rgba(0, 0, 0, 0.1))" }}
       >
-        <div className="max-w-lg mx-auto relative grid grid-cols-5 py-2">
+        <div className="max-w-md mx-auto relative grid grid-cols-5 py-2">
           {/* Curved notch extending up from the navbar seamlessly with a deep overlap to seal any sub-pixel gap */}
           <svg
             className="absolute left-0 w-full pointer-events-none z-10"
@@ -488,7 +539,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
             <path
               d="M0,21 L30,21 C40,21 40,1 50,1 C60,1 60,21 70,21 L100,21"
               fill="none"
-              stroke="hsl(var(--border))"
+              stroke="hsl(var(--border) / 0.4)"
               strokeWidth="1"
               vectorEffect="non-scaling-stroke"
             />

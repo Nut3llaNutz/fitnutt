@@ -26,7 +26,7 @@ export const useMealEntries = (dailyLogId?: string) => {
   const { addXP } = useSettings();
 
   const entriesQuery = useQuery({
-    queryKey: ["meal_entries", dailyLogId],
+    queryKey: ["meal_entries", user?.id, dailyLogId],
     enabled: !!dailyLogId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,9 +60,9 @@ export const useMealEntries = (dailyLogId?: string) => {
       await addXP.mutateAsync(XP_REWARDS.LOG_FOOD);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["meal_entries", dailyLogId] });
-      queryClient.invalidateQueries({ queryKey: ["daily_log"] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+      queryClient.invalidateQueries({ queryKey: ["meal_entries", user?.id, dailyLogId] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
     },
   });
 
@@ -76,9 +76,9 @@ export const useMealEntries = (dailyLogId?: string) => {
     },
     onSuccess: () => {
       // Invalidate all related queries to ensure consistency across views
-      queryClient.invalidateQueries({ queryKey: ["meal_entries"] });
-      queryClient.invalidateQueries({ queryKey: ["daily_log"] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+      queryClient.invalidateQueries({ queryKey: ["meal_entries", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
     },
   });
 

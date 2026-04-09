@@ -15,6 +15,33 @@ const Auth = () => {
   const { user, loading, setIsAuthenticating } = useAuth();
   const navigate = useNavigate();
 
+  const migrateGuestData = async (userId: string) => {
+    const guestData = localStorage.getItem("fitnutt_guest_settings");
+    if (guestData) {
+      try {
+        const settings = JSON.parse(guestData);
+        // We only migrate the targets and progress related fields
+        const { error } = await supabase
+          .from("user_settings")
+          .update({
+            calorie_target: settings.calorie_target,
+            protein_target: settings.protein_target,
+            carb_target: settings.carb_target,
+            fat_target: settings.fat_target,
+            total_xp: settings.total_xp,
+            tutorial_completed: settings.tutorial_completed
+          })
+          .eq("user_id", userId);
+        
+        if (!error) {
+          localStorage.removeItem("fitnutt_guest_settings");
+        }
+      } catch (e) {
+        console.error("Migration failed", e);
+      }
+    }
+  };
+
   // Handle session-based redirects and recovery flows
   useEffect(() => {
     const hash = window.location.hash;
@@ -28,6 +55,7 @@ const Auth = () => {
     }
 
     if (user) {
+      migrateGuestData(user.id);
       navigate("/", { replace: true });
     }
   }, [user, navigate]);
@@ -51,11 +79,12 @@ const Auth = () => {
     }
 
     if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      } else if (data.user) {
+        await migrateGuestData(data.user.id);
       }
-      // On success, the useEffect above handles the redirect via user state change
     } else {
       const { error } = await supabase.auth.signUp({
         email,

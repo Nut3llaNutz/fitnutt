@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { Layout } from "@/components/Layout";
 import { useFoods, Food } from "@/hooks/useFoods";
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
 import { Button } from "@/components/ui/button";
+import { Nut3llaPrompt } from "@/components/Nut3llaPrompt";
+import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -58,6 +59,8 @@ const Fuel = () => {
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [isVegOnly, setIsVegOnly] = useState(() => localStorage.getItem("diet_preference") !== "non-veg");
 
+  const { isGuest } = useAuth();
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   const [loggingFood, setLoggingFood] = useState<Food | null>(null);
   const [logForm, setLogForm] = useState({ quantity: "1", mealType: "breakfast" });
 
@@ -87,7 +90,7 @@ const Fuel = () => {
     setShowForm(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
       name: form.name,
@@ -100,11 +103,18 @@ const Fuel = () => {
       category: form.category,
       is_veg: form.is_veg,
     };
-    if (editId) updateFood.mutate({ id: editId, ...payload });
-    else addFood.mutate({ ...payload, source: "user" });
     
-    toast({ title: editId ? "Food updated!" : "Food added!" });
-    setShowForm(false);
+    try {
+      if (editId) {
+        await updateFood.mutateAsync({ id: editId, ...payload });
+      } else {
+        const newFood = await addFood.mutateAsync({ ...payload, source: "user" });
+        if (newFood?.id) setEditId(newFood.id);
+      }
+      toast({ title: editId ? "Food updated!" : "Food added to library!" });
+    } catch (err) {
+      toast({ title: "Failed to save food", variant: "destructive" });
+    }
   };
 
   const handleDelete = () => {
@@ -174,18 +184,17 @@ const Fuel = () => {
   const canDelete = editId && currentFood && currentFood.source !== "preset";
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between px-1">
           <h1 className="text-2xl font-bold tracking-tight">Fuel Library</h1>
           <Button
             size="icon"
-            variant="ghost"
-            onClick={openAdd}
-            className="h-10 w-10 text-primary hover:bg-primary/10 rounded-xl"
+            variant="outline"
+            onClick={() => isGuest ? setShowGuestPrompt(true) : openAdd()}
+            className="h-9 w-9 rounded-xl border-primary/20 bg-background/50 backdrop-blur-sm transition-all active:scale-95 shadow-lg shadow-black/5 text-primary"
           >
-            <Plus className="h-6 w-6" />
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
 
@@ -275,7 +284,14 @@ const Fuel = () => {
                       <Plus className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); openEdit(f); }}
+                      onClick={(e) => { 
+                        if (isGuest && f.source !== 'preset') {
+                          setShowGuestPrompt(true);
+                        } else {
+                          e.stopPropagation(); 
+                          openEdit(f); 
+                        }
+                      }}
                       className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -482,8 +498,14 @@ const Fuel = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {showGuestPrompt && (
+          <Nut3llaPrompt 
+            description="Loggin' pre-built fuels is fine, but if you want to create your own custom kitchen, you'll need to join the Nut3lla Protocol."
+            onClose={() => setShowGuestPrompt(false)}
+          />
+        )}
       </div>
-    </Layout>
   );
 };
 

@@ -1,10 +1,12 @@
 import React from "react";
-import { Layout } from "@/components/Layout";
 import { useSettings } from "@/hooks/useSettings";
 import { calculateLevel, getRankTitle } from "@/lib/gamification";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Star, Zap, Flame, Shield, Award, Crown, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Nut3llaPrompt } from "@/components/Nut3llaPrompt";
+import { useState, useEffect } from "react";
 
 const RANK_LEVELS = [
   { lv: 1, title: "GYM NOVICE", icon: Star, color: "text-muted-foreground" },
@@ -19,12 +21,21 @@ const RANK_LEVELS = [
 
 const PumpRank = () => {
   const { settings } = useSettings();
+  const { isGuest } = useAuth();
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+
+  useEffect(() => {
+    if (isGuest) {
+      const timer = setTimeout(() => setShowGuestPrompt(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isGuest]);
+
   // @ts-ignore
   const levelInfo = calculateLevel(settings?.total_xp || 0);
 
   return (
-    <Layout>
-      <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12">
         <div className="flex items-center gap-4">
           <Link to="/" className="h-10 w-10 rounded-xl bg-card border border-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors">
             <ArrowLeft size={20} />
@@ -106,8 +117,16 @@ const PumpRank = () => {
             })}
           </div>
         </div>
-      </div>
-    </Layout>
+      
+      {showGuestPrompt && (
+        <Nut3llaPrompt 
+          title="Become a Legend"
+          description="You can view the ladder as a guest, but to climb it and earn your spot in the GOD OF IRON rank, you must join the Protocol."
+          actionText="Start Your Journey"
+          onClose={() => setShowGuestPrompt(false)}
+        />
+      )}
+    </div>
   );
 };
 

@@ -19,10 +19,11 @@ interface ShareProgressCardProps {
   streak: number;
   userName: string;
   date?: string;
+  logoUrl?: string;
 }
 
 export const ShareProgressCard = forwardRef<HTMLDivElement, ShareProgressCardProps>(
-  ({ totals, targets, pumpLevel, rank, streak, userName, date }, ref) => {
+  ({ totals, targets, pumpLevel, rank, streak, userName, date, logoUrl }, ref) => {
     const today = (date ? new Date(date + "T12:00:00") : new Date()).toLocaleDateString(undefined, {
       weekday: "long",
       month: "long",
@@ -78,7 +79,7 @@ export const ShareProgressCard = forwardRef<HTMLDivElement, ShareProgressCardPro
         {/* Top Branding */}
         <div className="w-full flex justify-between items-start z-10 gap-12">
           <div className="flex items-center gap-8 min-w-0">
-            <img src="/fitnutt-logo.png" alt="Logo" className="h-[100px] w-auto shadow-2xl flex-shrink-0" />
+            <img src={logoUrl || "/fitnutt-logo.png"} alt="Logo" className="h-[100px] w-auto shadow-2xl flex-shrink-0" />
             <div className="space-y-2 min-w-0">
               <h1 className="text-7xl font-black italic tracking-tighter text-white whitespace-nowrap">
                 FIT<span className="text-primary">NUTT</span>

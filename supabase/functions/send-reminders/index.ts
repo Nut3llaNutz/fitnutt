@@ -16,10 +16,10 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const now = new Date();
   
-  // Fetch users and their push subscriptions safely since they both rely on auth.users rather than each other
+  // Fetch users and their push subscriptions
   const { data: users, error: userError } = await supabase
     .from('user_settings')
-    .select('user_id, notification_time, supplements, timezone');
+    .select('user_id, notification_time, supplements, timezone, meal_reminders_enabled, supp_reminders_enabled');
 
   const { data: subs, error: subError } = await supabase
     .from('push_subscriptions')
@@ -41,31 +41,35 @@ serve(async (req) => {
 
   for (const user of users) {
     const userSubs = subMap[user.user_id] || [];
-    // Basic validation
     if (userSubs.length === 0) continue;
-    if (!user.notification_time || !user.supplements) continue;
 
     try {
       const userTz = user.timezone || 'UTC';
-      
-      // Get the current time in the user's local timezone
       const nowInUserTz = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
       const currentHour = nowInUserTz.getHours();
-      const currentSlot = Math.floor(nowInUserTz.getMinutes() / 15) * 15; // 0, 15, 30, or 45
+      const currentMin = nowInUserTz.getMinutes();
+      const currentSlot = Math.floor(currentMin / 15) * 15;
 
-      // Get the user's set time
-      const [userHour, userMin] = user.notification_time.split(':').map(Number);
-      const userSlot = Math.floor(userMin / 15) * 15; // round their minutes down to nearest slot
+      const [userHour, userMin] = (user.notification_time || "20:00").split(':').map(Number);
+      const userSlot = Math.floor(userMin / 15) * 15;
 
-      // Fire only when both hour AND 15-min slot match
-      if (userHour !== currentHour || userSlot !== currentSlot) continue;
+      // Determine if we should check for custom supplement/streak reminders
+      const isSuppTime = user.supp_reminders_enabled && currentHour === userHour && currentSlot === userSlot;
+      
+      // Determine if we should check for meal reminders (10:30, 16:00, 22:30)
+      const isMealTime = user.meal_reminders_enabled && (
+        (currentHour === 10 && currentSlot === 30) ||
+        (currentHour === 16 && currentSlot === 0) ||
+        (currentHour === 22 && currentSlot === 30)
+      );
 
-      // Find the start date of today in the user's timezone to query daily_logs properly
+      if (!isSuppTime && !isMealTime) continue;
+
+      // Find the start date of today in the user's timezone
       const startOfDay = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
       startOfDay.setHours(0,0,0,0);
       const isoDate = startOfDay.toISOString().split('T')[0];
       
-      // Fetch today's log for the user including all activity indicators
       const { data: log } = await supabase
         .from('daily_logs')
         .select('id, creatine_taken, whey_taken, supplements_taken, completed_exercises')
@@ -78,53 +82,58 @@ serve(async (req) => {
         .select('*', { count: 'exact', head: true })
         .eq('daily_log_id', log?.id || '00000000-0000-0000-0000-000000000000');
 
-      const taken = log?.supplements_taken || {};
-      const completedExercises = log?.completed_exercises || [];
-      const hasMeals = (mealCount || 0) > 0;
-      const hasExercises = completedExercises.length > 0;
-      const hasCoreSupps = (log?.creatine_taken || log?.whey_taken);
-      const hasCustomSupps = Object.values(taken).some(v => v);
-      
-      const isTotallyInactive = !hasMeals && !hasExercises && !hasCoreSupps && !hasCustomSupps;
-      
-      let payload;
+      let payload = null;
 
-      if (isTotallyInactive) {
-        payload = JSON.stringify({
-          title: "Don't break your streak! ⚡",
-          body: "You haven't logged anything for today yet. Time to level up?"
-        });
-      } else {
-        // Run existing supplement reminder logic if they HAVE done something but missed supps
+      // Handle Meal Reminders
+      if (isMealTime) {
+        let expectedMeals = 0;
+        let mealName = "";
+        if (currentHour === 10) { expectedMeals = 1; mealName = "breakfast"; }
+        else if (currentHour === 16) { expectedMeals = 2; mealName = "lunch"; }
+        else if (currentHour === 22) { expectedMeals = 3; mealName = "dinner"; }
+
+        if ((mealCount || 0) < expectedMeals) {
+          payload = JSON.stringify({
+            title: "Time to log " + mealName + "? 🍽️",
+            body: "Keep that streak alive! Don't forget to fuel the engine and log your progress."
+          });
+        }
+      }
+
+      // Handle Supplement/Streak Reminders (only if meal reminder didn't already trigger something)
+      if (!payload && isSuppTime) {
+        const taken = log?.supplements_taken || {};
         const enabled = ((user.supplements || []) as any[]).filter(s => s.enabled);
         const untaken = enabled.filter(s => !taken[s.id]);
         
-        // Add core supps to untaken if missing
         if (enabled.some(s => s.id === 'creatine' && !log?.creatine_taken)) untaken.push({ name: 'Creatine' });
         if (enabled.some(s => s.id === 'whey' && !log?.whey_taken)) untaken.push({ name: 'Whey' });
 
-        if (untaken.length === 0) continue;
+        const isTotallyInactive = (mealCount || 0) === 0 && (log?.completed_exercises || []).length === 0 && !log?.creatine_taken && !log?.whey_taken && !Object.values(taken).some(v => v);
 
-        const names = untaken.map(s => s.name).join(", ");
-        payload = JSON.stringify({
-          title: "Don't forget: " + names,
-          body: ""
-        });
+        if (isTotallyInactive) {
+          payload = JSON.stringify({
+            title: "Don't break your streak! ⚡",
+            body: "You haven't logged anything for today yet. Time to level up?"
+          });
+        } else if (untaken.length > 0) {
+          const names = untaken.map(s => s.name).join(", ");
+          payload = JSON.stringify({
+            title: "Don't forget: " + names,
+            body: "Fuel the engine! Log your supplements for today."
+          });
+        }
       }
 
-      // Send to all their registered devices
+      if (!payload) continue;
+
+      // Send to devices
       for (const sub of userSubs) {
         try {
-          await webpush.sendNotification({
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth }
-          }, payload);
+          await sendPush(sub, payload); // Note: I assume sendPush is defined or I use webpush directly
           sentCount++;
         } catch(e: any) {
           console.error('Push failed vs', sub.endpoint, e);
-          if (e?.statusCode === 404 || e?.statusCode === 410) {
-            await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-          }
         }
       }
 
@@ -134,4 +143,19 @@ serve(async (req) => {
   }
 
   return new Response(JSON.stringify({ success: true, sent: sentCount }), { headers: { 'Content-Type': 'application/json' } });
+
+  // Add the internal push sender since this file doesn't seem to have the standalone sendPush helper exactly like supplement-nag
+  async function sendPush(sub: any, payload: string) {
+    try {
+      await webpush.sendNotification({
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth }
+      }, payload);
+    } catch(e: any) {
+      if (e?.statusCode === 404 || e?.statusCode === 410) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      }
+      throw e;
+    }
+  }
 });

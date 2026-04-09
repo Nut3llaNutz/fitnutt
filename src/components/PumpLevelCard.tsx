@@ -14,8 +14,8 @@ export const PumpLevelCard = ({ variant = "default" }: { variant?: "default" | "
   if (variant === "compact") {
     return (
       <Link to="/pump-rank" className="group flex items-center gap-3 bg-card/50 backdrop-blur-sm border border-primary/10 rounded-2xl p-3 hover:bg-primary/5 transition-all active:scale-95 shadow-sm">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary group-hover:scale-110 transition-transform">
-          <span className="text-sm font-black italic">Lvl {levelInfo.level}</span>
+        <div className="flex h-10 w-fit px-2 items-center justify-center rounded-xl bg-primary/20 text-primary group-hover:scale-110 transition-transform">
+          <span className="text-xs font-black italic tracking-tighter whitespace-nowrap pr-0.5">Lvl {levelInfo.level}</span>
         </div>
         <div className="flex-1 space-y-1">
           <div className="flex justify-between items-end">

@@ -13,7 +13,7 @@ export const useDailyLog = (date?: string) => {
   const d = date || todayStr();
 
   const logQuery = useQuery({
-    queryKey: ["daily_log", d],
+    queryKey: ["daily_log", user?.id, d],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -35,7 +35,7 @@ export const useDailyLog = (date?: string) => {
       .select()
       .single();
     if (error) throw error;
-    queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
+    queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
     return data;
   };
 
@@ -53,8 +53,8 @@ export const useDailyLog = (date?: string) => {
       await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
     },
   });
 
@@ -74,8 +74,8 @@ export const useDailyLog = (date?: string) => {
       await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
     },
   });
 
@@ -100,8 +100,8 @@ export const useDailyLog = (date?: string) => {
       await addXP.mutateAsync(isDone ? -XP_REWARDS.COMPLETE_EXERCISE : XP_REWARDS.COMPLETE_EXERCISE);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_log", d] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak"] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
     },
   });
 
