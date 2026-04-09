@@ -119,12 +119,14 @@ const PumpRank = () => {
         </div>
       
       {showGuestPrompt && (
-        <Nut3llaPrompt 
-          title="Become a Legend"
-          description="You can view the ladder as a guest, but to climb it and earn your spot in the GOD OF IRON rank, you must join the Protocol."
-          actionText="Start Your Journey"
-          onClose={() => setShowGuestPrompt(false)}
-        />
+        <div id="rank-guest-popup">
+          <Nut3llaPrompt 
+            title="Become a Legend"
+            description="You can view the ladder as a guest, but to climb it and earn your spot in the GOD OF IRON rank, you must join the Protocol."
+            actionText="Start Your Journey"
+            onClose={() => setShowGuestPrompt(false)}
+          />
+        </div>
       )}
     </div>
   );

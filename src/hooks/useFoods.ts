@@ -24,13 +24,17 @@ export const useFoods = () => {
 
   const foodsQuery = useQuery({
     queryKey: ["foods", user?.id],
-    enabled: !!user,
+    enabled: true,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("foods")
-        .select("*")
-        .or(`user_id.eq.${user!.id},source.eq.preset`)
-        .order("name");
+      let query = (supabase.from("foods" as any) as any).select("*");
+      
+      if (user) {
+        query = query.or(`user_id.eq.${user.id},source.eq.preset`);
+      } else {
+        query = query.eq("source", "preset");
+      }
+
+      const { data, error } = await query.order("name");
       if (error) throw error;
       return (data || []) as unknown as Food[];
     },
@@ -73,7 +77,7 @@ export const useFoods = () => {
 
   const deleteFood = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("foods").delete().eq("id", id);
+      const { error } = await (supabase.from("foods" as any) as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["foods"] }),

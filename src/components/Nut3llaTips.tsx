@@ -53,8 +53,8 @@ export const Nut3llaTips = () => {
   }, []);
 
   const popRandomTip = useCallback(() => {
-    // Suppress tips if the tutorial overlay is currently showing
-    if (document.getElementById("tutorial-overlay")) return;
+    // Suppress tips if the tutorial overlay or rank onboarding is showing
+    if (document.getElementById("tutorial-overlay") || document.getElementById("rank-guest-popup")) return;
 
     let index;
     do {

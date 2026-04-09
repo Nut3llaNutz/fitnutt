@@ -39,8 +39,8 @@ import { Nut3lla } from "./Nut3lla";
 import { useDate } from "@/contexts/DateContext";
 
 const leftNav = [
-  { path: "/", icon: Home, label: "Home" },
-  { path: "/foods", icon: Apple, label: "Fuel" },
+  { path: "/", icon: Home, label: "Home", tour: "nav-diary" },
+  { path: "/foods", icon: Apple, label: "Fuel", tour: "nav-foods" },
 ];
 
 const rightNav = [
@@ -48,11 +48,7 @@ const rightNav = [
   { path: "/profile", icon: Settings, label: "Settings" },
 ];
 
-export const Layout = ({
-  children,
-}: {
-  children: ReactNode;
-}) => {
+export const Layout = ({ children }: { children: ReactNode }) => {
   const { currentDate: globalDate } = useDate();
   const location = useLocation();
   const navigate = useNavigate();
@@ -61,7 +57,7 @@ export const Layout = ({
   const { user, isGuest } = useAuth();
   const { toast } = useToast();
 
-   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [easterEggMessage, setEasterEggMessage] = useState<string | null>(null);
@@ -100,11 +96,13 @@ export const Layout = ({
           fingerprint = crypto.randomUUID();
           localStorage.setItem("fitnutt_guest_id", fingerprint);
         }
-        
+
         // Use a session-length key to only ping once per browser load
         const sessionPinged = sessionStorage.getItem("guest_ping_done");
         if (!sessionPinged) {
-          await supabase.rpc("track_guest_session", { p_fingerprint: fingerprint });
+          await supabase.rpc("track_guest_session", {
+            p_fingerprint: fingerprint,
+          });
           sessionStorage.setItem("guest_ping_done", "true");
         }
       };
@@ -216,12 +214,16 @@ export const Layout = ({
 
     try {
       // Use dynamic import so it works whether installed locally OR pulling from CDN
-      const module = await import(/* @vite-ignore */ "html-to-image").catch(async () => {
-        // Fallback for CDN if local node_modules is still syncing
-        return await import(/* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11");
-      });
+      const module = await import(/* @vite-ignore */ "html-to-image").catch(
+        async () => {
+          // Fallback for CDN if local node_modules is still syncing
+          return await import(
+            /* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11"
+          );
+        },
+      );
 
-       const toPngLocal = (module as any).toPng;
+      const toPngLocal = (module as any).toPng;
 
       // iOS Safari "Warm up" - The first call often fails to render images properly
       // By calling it once and ignoring the result, we force the browser to paint the buffer.
@@ -491,7 +493,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
         {(() => {
           const levelInfo = calculateLevel((settings as any)?.total_xp || 0);
           return (
-             <ShareProgressCard
+            <ShareProgressCard
               ref={cardRef}
               totals={totals}
               targets={targets}
@@ -545,12 +547,13 @@ Android - Browser Menu > Add to Homescreen > Install`;
             />
           </svg>
 
-          {leftNav.map(({ path, icon: Icon, label }) => {
+          {leftNav.map(({ path, icon: Icon, label, tour }) => {
             const active = location.pathname === path;
             return (
               <Link
                 key={path}
                 to={path}
+                data-tour={tour}
                 className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors ${
                   active
                     ? "text-primary"
@@ -576,17 +579,24 @@ Android - Browser Menu > Add to Homescreen > Install`;
 
           {rightNav.map(({ path, icon: Icon, label }) => {
             const active = location.pathname === path;
+            const isSettings = label === "Settings";
             return (
               <Link
                 key={path}
                 to={path}
-                className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors ${
+                className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors relative ${
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="h-5 w-5" />
+                {isSettings && isGuest && (
+                  <span className="absolute top-1 right-5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                )}
                 <span className="text-[10px] font-medium">{label}</span>
               </Link>
             );

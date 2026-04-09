@@ -15,31 +15,37 @@ interface Step {
   message: string;
   target?: string;
   position?: "center" | "top" | "bottom" | "auto";
+  interactionType?: "click" | "none";
 }
 
 const tutorialSteps: Step[] = [
   { 
     message: "YO! I'm Nut3lla. Welcome to FitNutt. I literally never stop pumping iron. We're about to get you shredded. Ready for a quick tour?",
-    position: "center"
+    position: "center",
+    interactionType: "none"
   },
   { 
-    message: "This is your Dashboard! These rings track your daily progress. They turn GREEN once you've hit your goals for the day!",
+    message: "This is your Dashboard! These rings track your daily progress. TAP THEM to see what I mean!",
     target: '[data-tour="macro-rings"]',
-    position: "bottom"
+    position: "bottom",
+    interactionType: "click"
   },
   { 
-    message: "This is your Daily Diary. Click here to log every single bite. Accountability is the secret sauce to the pump!",
+    message: "This is your Daily Diary. Click the Home icon to log every single bite. Accountability is the secret sauce!",
     target: '[data-tour="nav-diary"]',
-    position: "top"
+    position: "top",
+    interactionType: "click"
   },
   { 
-    message: "And here's the Food Library. This is your personal database of mass-building fuel. Add and save anything you eat!",
+    message: "And here's the Food Library. TAP IT now! This is your database of mass-building fuel.",
     target: '[data-tour="nav-foods"]',
-    position: "top"
+    position: "top",
+    interactionType: "click"
   },
   { 
     message: "Alright, enough talk. It's time to build your customized fitness protocol. Give me your stats, and I'll crunch the macros.",
-    position: "center"
+    position: "center",
+    interactionType: "none"
   }
 ];
 
@@ -56,6 +62,23 @@ export const TutorialFlow = ({ onComplete }: { onComplete: () => void }) => {
   
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Handle interactive clicks
+  useEffect(() => {
+    const currentStep = tutorialSteps[step];
+    if (currentStep?.interactionType === 'click' && currentStep.target) {
+      const targetEl = document.querySelector(currentStep.target);
+      if (targetEl) {
+        const handleClick = () => {
+          // Add a small delay for navigation to start before moving step
+          setTimeout(setNextStep, 50);
+          targetEl.removeEventListener('click', handleClick);
+        };
+        targetEl.addEventListener('click', handleClick);
+        return () => targetEl.removeEventListener('click', handleClick);
+      }
+    }
+  }, [step, setNextStep]);
 
   // Update spotlight position when step changes
   useEffect(() => {
@@ -117,6 +140,23 @@ export const TutorialFlow = ({ onComplete }: { onComplete: () => void }) => {
           activity_level: act,
           goal
         }).eq('user_id', user.id);
+      } else {
+        // For guest mode, save to localStorage
+        const guestSettings = JSON.parse(localStorage.getItem('fitnutt_guest_settings') || '{}');
+        localStorage.setItem('fitnutt_guest_settings', JSON.stringify({
+          ...guestSettings,
+          tutorial_completed: true,
+          calorie_target: targets.calories,
+          protein_target: targets.protein,
+          carb_target: targets.carbs,
+          fat_target: targets.fats,
+          gender,
+          weight_kg: w,
+          height_cm: h,
+          age: a,
+          activity_level: act,
+          goal
+        }));
       }
       toast({ title: "Fitness Protocol Locked In! 🔒" });
       onComplete();
@@ -130,6 +170,9 @@ export const TutorialFlow = ({ onComplete }: { onComplete: () => void }) => {
   const handleSkip = async () => {
     if (user) {
       await supabase.from('user_settings').update({ tutorial_completed: true }).eq('user_id', user.id);
+    } else {
+      const guestSettings = JSON.parse(localStorage.getItem('fitnutt_guest_settings') || '{}');
+      localStorage.setItem('fitnutt_guest_settings', JSON.stringify({ ...guestSettings, tutorial_completed: true }));
     }
     onComplete();
   };
@@ -224,9 +267,11 @@ export const TutorialFlow = ({ onComplete }: { onComplete: () => void }) => {
                     <div className="flex gap-2">
                       {step < tutorialSteps.length - 1 ? (
                         <>
-                          <Button onClick={setNextStep} size="sm" className="flex-1 font-bold h-9 text-xs shadow-lg shadow-primary/20">
-                            {step === 0 ? "START TOUR" : "NEXT"}
-                          </Button>
+                          {tutorialSteps[step].interactionType !== 'click' && (
+                            <Button onClick={setNextStep} size="sm" className="flex-1 font-bold h-9 text-xs shadow-lg shadow-primary/20">
+                              {step === 0 ? "START TOUR" : "NEXT"}
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             onClick={handleSkip} 
