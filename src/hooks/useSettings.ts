@@ -25,12 +25,12 @@ const INITIAL_GUEST_SETTINGS = {
 };
 
 export const useSettings = () => {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
   const settingsQuery = useQuery({
     queryKey: ["user_settings", user?.id || "guest"],
-    enabled: true,
+    enabled: !authLoading,
     queryFn: async () => {
       if (isGuest) {
         const local = localStorage.getItem(GUEST_SETTINGS_KEY);

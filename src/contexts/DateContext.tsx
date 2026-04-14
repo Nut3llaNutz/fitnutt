@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { getTodayStr } from "@/lib/dateUtils";
 
 interface DateContextType {
   currentDate: string;
@@ -9,10 +10,9 @@ interface DateContextType {
 const DateContext = createContext<DateContextType | undefined>(undefined);
 
 export const DateProvider = ({ children }: { children: ReactNode }) => {
-  const todayStr = () => new Date().toISOString().split("T")[0];
-  const [currentDate, setCurrentDate] = useState(todayStr());
+  const [currentDate, setCurrentDate] = useState(getTodayStr());
 
-  const resetToToday = () => setCurrentDate(todayStr());
+  const resetToToday = () => setCurrentDate(getTodayStr());
 
   return (
     <DateContext.Provider value={{ currentDate, setCurrentDate, resetToToday }}>

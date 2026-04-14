@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Nut3llaProps {
   message?: React.ReactNode;
@@ -57,7 +58,12 @@ export const Nut3lla = ({
           {isDismissible && onClose && (
             <button 
               onClick={onClose}
-              className="absolute -top-3 -right-3 rounded-full bg-destructive text-destructive-foreground p-1 shadow-lg hover:scale-110 active:scale-90 transition-all z-10"
+              className={cn(
+                "absolute -top-3 -right-3 rounded-full p-1.5 shadow-xl transition-all z-20",
+                variant === "compact" 
+                  ? "bg-destructive text-destructive-foreground hover:scale-110 active:scale-95 hover:rotate-90"
+                  : "bg-muted/90 backdrop-blur-md text-muted-foreground border-2 border-primary/10 hover:bg-muted hover:text-foreground hover:scale-110 active:scale-95 hover:rotate-90"
+              )}
             >
               <X className="h-3 w-3" strokeWidth={3} />
             </button>

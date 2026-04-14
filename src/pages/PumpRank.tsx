@@ -44,7 +44,7 @@ const PumpRank = () => {
         </div>
 
         {/* Hero Section */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-primary/20 via-card to-card border-2 border-primary/20 rounded-[2.5rem] p-8 shadow-2xl">
+        <div data-tour="rank-hero" className="relative overflow-hidden bg-gradient-to-br from-primary/20 via-card to-card border-2 border-primary/20 rounded-[2.5rem] p-8 shadow-2xl">
           <div className="absolute top-0 right-0 p-8 opacity-10 transform rotate-12">
             <Trophy size={180} />
           </div>

@@ -3,23 +3,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "./useSettings";
 import { XP_REWARDS } from "@/lib/gamification";
+import { getTodayStr } from "@/lib/dateUtils";
 
-const todayStr = () => new Date().toISOString().split("T")[0];
 
 export const useDailyLog = (date?: string) => {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const queryClient = useQueryClient();
   const { addXP } = useSettings();
-  const d = date || todayStr();
+  const d = date || getTodayStr();
 
   const logQuery = useQuery({
-    queryKey: ["daily_log", user?.id, d],
-    enabled: !!user,
+    queryKey: ["daily_log", user?.id || "guest", d],
+    enabled: true,
     queryFn: async () => {
+      if (isGuest) {
+        const local = localStorage.getItem("fitnutt_guest_logs");
+        const allLogs: any[] = local ? JSON.parse(local) : [];
+        return allLogs.find(l => l.date === d) || null;
+      }
+
+      if (!user) return null;
+
       const { data, error } = await supabase
         .from("daily_logs")
         .select("*")
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .eq("date", d)
         .maybeSingle();
       if (error) throw error;
@@ -29,6 +37,28 @@ export const useDailyLog = (date?: string) => {
 
   const ensureLog = async () => {
     if (logQuery.data) return logQuery.data;
+
+    if (isGuest) {
+      const local = localStorage.getItem("fitnutt_guest_logs");
+      const allLogs: any[] = local ? JSON.parse(local) : [];
+      let log = allLogs.find(l => l.date === d);
+      if (!log) {
+        log = {
+          id: crypto.randomUUID(),
+          date: d,
+          user_id: "guest",
+          creatine_taken: false,
+          whey_taken: false,
+          supplements_taken: {},
+          completed_exercises: [],
+        };
+        allLogs.push(log);
+        localStorage.setItem("fitnutt_guest_logs", JSON.stringify(allLogs));
+        queryClient.invalidateQueries({ queryKey: ["daily_log", "guest", d] });
+      }
+      return log;
+    }
+
     const { data, error } = await supabase
       .from("daily_logs")
       .upsert({ user_id: user!.id, date: d }, { onConflict: "user_id,date" })
@@ -39,22 +69,37 @@ export const useDailyLog = (date?: string) => {
     return data;
   };
 
+  const updateGuestLog = (logId: string, updates: any) => {
+    const local = localStorage.getItem("fitnutt_guest_logs");
+    const allLogs: any[] = local ? JSON.parse(local) : [];
+    const index = allLogs.findIndex(l => l.id === logId);
+    if (index > -1) {
+      allLogs[index] = { ...allLogs[index], ...updates };
+      localStorage.setItem("fitnutt_guest_logs", JSON.stringify(allLogs));
+    }
+  };
+
   const toggleSupplement = useMutation({
     mutationFn: async (field: "creatine_taken" | "whey_taken") => {
       const log = await ensureLog();
       const isNowTaken = !(log as any)[field];
-      const { error } = await supabase
-        .from("daily_logs")
-        .update({ [field]: isNowTaken })
-        .eq("id", log.id);
-      if (error) throw error;
+      
+      if (isGuest) {
+        updateGuestLog(log.id, { [field]: isNowTaken });
+      } else {
+        const { error } = await supabase
+          .from("daily_logs")
+          .update({ [field]: isNowTaken })
+          .eq("id", log.id);
+        if (error) throw error;
+      }
 
       // Award or remove XP
       await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id || "guest", d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id || "guest"] });
     },
   });
 
@@ -64,18 +109,23 @@ export const useDailyLog = (date?: string) => {
       const taken = ((log as any).supplements_taken as Record<string, boolean>) || {};
       const isNowTaken = !taken[supplementId];
       const newTaken = { ...taken, [supplementId]: isNowTaken };
-      const { error } = await supabase
-        .from("daily_logs")
-        .update({ supplements_taken: newTaken } as any)
-        .eq("id", log.id);
-      if (error) throw error;
+      
+      if (isGuest) {
+        updateGuestLog(log.id, { supplements_taken: newTaken });
+      } else {
+        const { error } = await supabase
+          .from("daily_logs")
+          .update({ supplements_taken: newTaken } as any)
+          .eq("id", log.id);
+        if (error) throw error;
+      }
 
       // Award or remove XP
       await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id || "guest", d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id || "guest"] });
     },
   });
 
@@ -89,19 +139,23 @@ export const useDailyLog = (date?: string) => {
         ? completed.filter(n => n !== exerciseName)
         : [...completed, exerciseName];
 
-      const { error } = await supabase
-        .from("daily_logs")
-        .update({ completed_exercises: newCompleted } as any)
-        .eq("id", log.id);
+      if (isGuest) {
+        updateGuestLog(log.id, { completed_exercises: newCompleted });
+      } else {
+        const { error } = await supabase
+          .from("daily_logs")
+          .update({ completed_exercises: newCompleted } as any)
+          .eq("id", log.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
       
       // Award or remove XP
       await addXP.mutateAsync(isDone ? -XP_REWARDS.COMPLETE_EXERCISE : XP_REWARDS.COMPLETE_EXERCISE);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id, d] });
-      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["daily_log", user?.id || "guest", d] });
+      queryClient.invalidateQueries({ queryKey: ["recent_logs_streak", user?.id || "guest"] });
     },
   });
 
@@ -114,3 +168,4 @@ export const useDailyLog = (date?: string) => {
     ensureLog 
   };
 };
+

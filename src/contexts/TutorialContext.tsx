@@ -1,57 +1,65 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSettings } from "@/hooks/useSettings";
+import { useAuth } from "./AuthContext";
 
 interface TutorialContextType {
-  isActive: boolean;
-  step: number;
-  setNextStep: () => void;
+  isActive: boolean;        // tour overlay is running
+  chapter: number;          // which chapter of the tour we're on
+  showInvite: boolean;      // whether to show the "click me" invite bubble
   startTutorial: () => void;
+  nextChapter: () => void;
   completeTutorial: () => void;
+  dismissInvite: () => void; // hides invite for this session only (NOT permanent)
 }
 
 const TutorialContext = createContext<TutorialContextType | undefined>(undefined);
 
 export const TutorialProvider = ({ children }: { children: React.ReactNode }) => {
-  const { settings } = useSettings();
-  const [isActive, setIsActive] = useState(false);
-  const [step, setStep] = useState(0);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { loading: authLoading, isGuest } = useAuth();
+  const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
+  
+  // Guests ALWAYS see the prompt on refresh. Logged-in users rely strictly on their db settings.
+  const alreadyDone = isGuest ? false : !!settings?.tutorial_completed;
 
-  // Initialize from settings
-  useEffect(() => {
-    if (settings && settings.tutorial_completed === false) {
-      setIsActive(true);
-    }
-  }, [settings]);
+  const [isActive, setIsActive] = useState(false);
+  const [chapter, setChapter] = useState(0);
+  const [inviteDismissed, setInviteDismissed] = useState(false);
 
-  const setNextStep = useCallback(() => {
-    // Stage 1: Dashboard (Done at step 1) -> Navigate to Foods
-    if (step === 1) {
-      navigate('/foods');
-    }
-    // Stage 2: Foods (Done at step 2) -> Navigate back to Dashboard for final form
-    else if (step === 2) {
-      navigate('/');
-    }
-    
-    setStep(prev => prev + 1);
-  }, [step, navigate]);
+  // Safely don't show the invite while we're still checking auth or fetching settings
+  const showInvite = !authLoading && !settingsLoading && !alreadyDone && !isActive && !inviteDismissed;
 
-  const startTutorial = () => {
+  const startTutorial = useCallback(() => {
+    setChapter(0);
     setIsActive(true);
-    setStep(0);
-    navigate('/');
-  };
+    navigate("/");
+  }, [navigate]);
 
-  const completeTutorial = () => {
+  const nextChapter = useCallback(() => {
+    setChapter(prev => prev + 1);
+  }, []);
+
+  const completeTutorial = useCallback(() => {
+    updateSettings.mutate({ tutorial_completed: true });
     setIsActive(false);
-    setStep(0);
-  };
+    setChapter(0);
+    setInviteDismissed(true); // Keep it away for this session!
+  }, [updateSettings]);
+
+  const dismissInvite = useCallback(() => {
+    setInviteDismissed(true);
+    if (!isGuest) {
+      // If a logged-in user clicks 'X', they permanently skip the tour on all their devices!
+      updateSettings.mutate({ tutorial_completed: true });
+    }
+  }, [isGuest, updateSettings]);
 
   return (
-    <TutorialContext.Provider value={{ isActive, step, setNextStep, startTutorial, completeTutorial }}>
+    <TutorialContext.Provider value={{
+      isActive, chapter, showInvite,
+      startTutorial, nextChapter, completeTutorial, dismissInvite
+    }}>
       {children}
     </TutorialContext.Provider>
   );
@@ -59,8 +67,6 @@ export const TutorialProvider = ({ children }: { children: React.ReactNode }) =>
 
 export const useTutorial = () => {
   const context = useContext(TutorialContext);
-  if (!context) {
-    throw new Error("useTutorial must be used within a TutorialProvider");
-  }
+  if (!context) throw new Error("useTutorial must be used within a TutorialProvider");
   return context;
 };

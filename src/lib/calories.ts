@@ -40,22 +40,36 @@ export const calculateMacros = ({
   const tdee = bmr * activity_level;
 
   // 3. Set Calorie Target based on Goal
-  const calorie_target = goal === 'bulk' 
-    ? Math.round(tdee + 300) 
-    : Math.round(tdee - 500);
-
-  // 4. Set Macro Ratios (Revised to be more realistic per user's request)
-  // Standard fitness recommendations: 1.6 - 2.2 g/kg of protein
-  const proteinMultiplier = goal === 'cut' ? 2.0 : 1.6;
-  const fatMultiplier = 0.9; // Standard healthy fat intake
-
-  const protein_target = Math.round(weight_kg * proteinMultiplier);
-  const fat_target = Math.round(weight_kg * fatMultiplier);
+  let target = tdee;
+  if (goal === 'bulk') {
+    target = tdee + 300;
+  } else if (goal === 'cut') {
+    target = tdee - 500;
+  }
   
-  // 5. Remaining calories for carbs (4 kcal per gram)
-  const remainingCals = calorie_target - (protein_target * 4) - (fat_target * 9);
-  const carb_target = Math.max(0, Math.round(remainingCals / 4));
+  // Round to nearest 50 for a cleaner target
+  const calorie_target = Math.round(target / 50) * 50;
 
+  // 4. Set Macro Ratios (More realistic parameters)
+  // Protein: Lowered slightly based on modern general fitness recommendations
+  let proteinMultiplier;
+  if (goal === 'bulk') proteinMultiplier = 1.4;
+  else if (goal === 'cut') proteinMultiplier = 1.8;
+  else proteinMultiplier = 1.6;
+
+  // Fats: Healthy range (around 1.15g per kg balances out nicely)
+  const fatMultiplier = 1.15; 
+
+  // We explicitly round the macros
+  let protein_target = Math.round(weight_kg * proteinMultiplier);
+  let fat_target = Math.round(weight_kg * fatMultiplier);
+  
+  // 5. Remaining calories for carbs (4 kcal/g for protein and carbs, 9 kcal/g for fats)
+  const remainingCals = calorie_target - (protein_target * 4) - (fat_target * 9);
+  let carb_target = Math.max(0, Math.round(remainingCals / 4));
+
+  // If maintaining macros, we generally round the macros to nice whole 5s or 10s based on preference,
+  // but exact integer values are perfectly functional.
   return {
     calories: calorie_target,
     protein: protein_target,

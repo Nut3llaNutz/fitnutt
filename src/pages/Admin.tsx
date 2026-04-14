@@ -14,6 +14,8 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, BarChart, Bar, Cell, CartesianGrid 
 } from "recharts";
+import { useToast } from "@/hooks/use-toast";
+import { Wrench } from "lucide-react";
 
 const ADMIN_EMAIL = "yuvrajbhardwaj2005yb@gmail.com";
 const ADMIN_PASSWORD = "yuvjig58";
@@ -23,6 +25,8 @@ const Admin = () => {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+  const { toast } = useToast();
 
   const [timeframe, setTimeframe] = useState("7d");
   const { data: stats, isLoading } = useQuery({
@@ -61,6 +65,43 @@ const Admin = () => {
       setError("");
     } else {
       setError("Incorrect secondary password.");
+    }
+  };
+
+  const handleResetEasterEggs = async () => {
+    const confirmed = window.confirm(
+      "☢️ WARNING: GLOBAL RESET PROTOCOL\n\nThis will wipe easter egg progress and logo stats for EVERY user in the database. This cannot be undone.\n\nProceed?"
+    );
+    if (!confirmed) return;
+
+    setIsResetting(true);
+    try {
+      // Omitting .eq() to update all rows. Supabase client might require a filter, 
+      // so we use .neq with a dummy UUID to target standard rows.
+      const { error } = await supabase
+        .from("user_settings")
+        .update({
+          logo_easter_egg_triggered: false,
+          streak_easter_egg_triggered: false,
+          logo_taps_count: 0,
+          logo_tap_streak: 0,
+        } as any)
+        .neq("user_id", "00000000-0000-0000-0000-000000000000");
+
+      if (error) throw error;
+      
+      toast({
+        title: "Global Reset Complete! 🌍",
+        description: "Achivement flags have been cleared for all protocol members.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Reset Failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -275,6 +316,34 @@ const Admin = () => {
                 </ResponsiveContainer>
               </div>
             </Card>
+
+            {/* Maintenance Section */}
+            <div className="pt-4">
+              <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 mb-4 text-muted-foreground/50">
+                <Wrench className="h-4 w-4" /> Account Maintenance
+              </h3>
+              <Card className="p-6 border-destructive/20 bg-destructive/5 backdrop-blur-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                  <Flame className="h-16 w-16 text-destructive" />
+                </div>
+                <div className="space-y-4 relative z-10">
+                  <div>
+                    <h4 className="text-lg font-bold text-foreground">Global Protocol Reset</h4>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                      This will reset achievement flags and tapping progress for **EVERY** user in the system. Use this only for site-wide events or major version shifts.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleResetEasterEggs}
+                    disabled={isResetting}
+                    className="h-10 font-black text-[10px] tracking-widest uppercase px-6"
+                  >
+                    {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : "EXECUTE GLOBAL RESET"}
+                  </Button>
+                </div>
+              </Card>
+            </div>
           </div>
         )}
 

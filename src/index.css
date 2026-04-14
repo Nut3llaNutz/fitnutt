@@ -159,6 +159,9 @@
   .animate-shake-1 {
     animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
   }
+  .animate-flame {
+    animation: flame 1.5s ease-in-out infinite;
+  }
 }
 
 @keyframes pump-up {
@@ -181,4 +184,9 @@
   20%, 80% { transform: translate3d(2px, 0, 0); }
   30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
   40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+@keyframes flame {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50% { transform: scale(1.1) rotate(2deg); }
 }

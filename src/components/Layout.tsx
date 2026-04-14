@@ -14,12 +14,13 @@ import {
   Image as ImageIcon,
   Loader2,
   ChevronRight,
+  Flame,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { AnimatedLogo } from "./AnimatedLogo";
 import { Nut3llaTips } from "./Nut3llaTips";
 import { supabase } from "@/integrations/supabase/client";
-import { TutorialFlow } from "./TutorialFlow";
+import { TutorialInvite, TutorialOverlay } from "./TutorialFlow";
 import { useTutorial } from "@/contexts/TutorialContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -36,7 +37,9 @@ import { useToast } from "@/hooks/use-toast";
 import { ShareProgressCard } from "./ShareProgressCard";
 import { calculateLevel, calculateXpForLevelJump } from "@/lib/gamification";
 import { Nut3lla } from "./Nut3lla";
+import { Nut3llaPrompt } from "./Nut3llaPrompt";
 import { useDate } from "@/contexts/DateContext";
+import { getTodayStr, parseLocalDate, formatLocalDate } from "@/lib/dateUtils";
 
 const leftNav = [
   { path: "/", icon: Home, label: "Home", tour: "nav-diary" },
@@ -53,7 +56,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
-  const { isActive, completeTutorial } = useTutorial();
+  const { isActive, showInvite } = useTutorial();
   const { user, isGuest } = useAuth();
   const { toast } = useToast();
 
@@ -61,9 +64,11 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [easterEggMessage, setEasterEggMessage] = useState<string | null>(null);
+  const [isStreakDialogOpen, setIsStreakDialogOpen] = useState(false);
+  const [showGuestStreakPrompt, setShowGuestStreakPrompt] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const displayDate = globalDate || new Date().toISOString().split("T")[0];
+  const displayDate = globalDate || getTodayStr();
   const { log } = useDailyLog(displayDate);
   const { entries } = useMealEntries(log?.id);
   const { settings } = useSettings();
@@ -156,12 +161,10 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
     if (activeLogs.length === 0) return 0;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = parseLocalDate(getTodayStr());
 
     // Check if the most recent activity was today or yesterday
-    const lastActiveDate = new Date(activeLogs[0].date);
-    lastActiveDate.setHours(0, 0, 0, 0);
+    const lastActiveDate = parseLocalDate(activeLogs[0].date);
     const diffDaysFromToday = Math.floor(
       (today.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24),
     );
@@ -171,10 +174,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
     let count = 1; // We have at least one active day (today or yesterday)
     for (let i = 0; i < activeLogs.length - 1; i++) {
-      const curr = new Date(activeLogs[i].date);
-      const prev = new Date(activeLogs[i + 1].date);
-      curr.setHours(0, 0, 0, 0);
-      prev.setHours(0, 0, 0, 0);
+      const curr = parseLocalDate(activeLogs[i].date);
+      const prev = parseLocalDate(activeLogs[i + 1].date);
 
       const diff = Math.floor(
         (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24),
@@ -255,7 +256,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           await navigator.share({
             files: [file],
             title: "My FitNutt Progress",
-            text: `Just hit my macros for ${displayDate === new Date().toISOString().split("T")[0] ? "today" : displayDate}. Join the grind! 💪🏻 #FitNutt`,
+            text: `Just hit my macros for ${displayDate === getTodayStr() ? "today" : displayDate}. Join the grind! 💪🏻 #FitNutt`,
           });
         } else {
           // Fallback if file sharing isn't supported on this specific mobile browser
@@ -328,7 +329,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
     if (!settings || !user) return;
 
     const s = settings as any;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayStr();
     const lastDate = s.last_logo_tap_date;
 
     let newTaps = (s.logo_taps_count || 0) + 1;
@@ -338,8 +339,8 @@ Android - Browser Menu > Add to Homescreen > Install`;
     if (!lastDate) {
       newStreak = 1;
     } else if (lastDate !== today) {
-      const last = new Date(lastDate);
-      const now = new Date(today);
+      const last = parseLocalDate(lastDate);
+      const now = parseLocalDate(today);
       const diffDays = Math.floor(
         (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24),
       );
@@ -382,7 +383,15 @@ Android - Browser Menu > Add to Homescreen > Install`;
   return (
     <div className="h-svh overflow-hidden bg-background w-full relative">
       <div className="fixed inset-0 bg-background -z-[50]" />
-      {isActive && <TutorialFlow onComplete={completeTutorial} />}
+      {isActive && <TutorialOverlay />}
+      {showInvite && !isActive && <TutorialInvite />}
+      {/* Guest Streak Prompt */}
+      {showGuestStreakPrompt && (
+        <Nut3llaPrompt
+          description="Streaks are serious business! Join the Nut3lla Protocol (Sign Up) to prove you're not just a tourist and starting tracking your legacy! 📈💪"
+          onClose={() => setShowGuestStreakPrompt(false)}
+        />
+      )}
       {/* Glassy Top Nav */}
       <header className="fixed top-0 left-0 right-0 z-50 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between pointer-events-auto">
@@ -395,13 +404,31 @@ Android - Browser Menu > Add to Homescreen > Install`;
               FitNutt
             </span>
           </div>
-          <button
-            onClick={() => setIsShareOpen(true)}
-            className="p-2 -mr-2 text-muted-foreground hover:text-primary transition-colors"
-            title="Share"
-          >
-            <Share2 className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              data-tour="streak-btn"
+              onClick={() => {
+                if (isGuest) {
+                  setShowGuestStreakPrompt(true);
+                } else {
+                  setIsStreakDialogOpen(true);
+                }
+              }}
+              className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-colors"
+            >
+              <Flame
+                className={`h-5 w-5 ${streak > 0 ? "fill-orange-500" : ""}`}
+              />
+              <span className="font-bold text-sm tracking-tight">{streak}</span>
+            </button>
+            <button
+              onClick={() => setIsShareOpen(true)}
+              className="p-2 -mr-2 text-muted-foreground hover:text-primary transition-colors"
+              title="Share"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -481,6 +508,40 @@ Android - Browser Menu > Add to Homescreen > Install`;
                 LIGHT WEIGHT BABY! 🦾
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Streak Dialog */}
+      <Dialog open={isStreakDialogOpen} onOpenChange={setIsStreakDialogOpen}>
+        <DialogContent 
+          hideClose 
+          className="w-[calc(100%-2.5rem)] max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-transparent"
+        >
+          <div className="bg-background/95 backdrop-blur-2xl p-8 relative flex flex-col items-center">
+            <div className="relative flex justify-center items-center mb-4 w-full">
+              <Nut3lla
+                message={
+                  streak === 0
+                    ? "0 days? You're better than this. Get to work!"
+                    : streak <= 2
+                      ? `Streak of ${streak}. Better than nothing, I guess. Keep going.`
+                      : streak <= 6
+                        ? `${streak} days in a row! Now we're talking. Let's keep the fire burning!`
+                        : `${streak} DAYS! BEAST MODE ACTIVATED! Don't you dare stop now!`
+                }
+                position="center"
+                isDismissible={false}
+                className="w-full relative z-10"
+              />
+            </div>
+
+            <Button
+              onClick={() => setIsStreakDialogOpen(false)}
+              className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20"
+            >
+              {streak === 0 ? "I'LL DO BETTER" : "LET'S GO!"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

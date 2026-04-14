@@ -304,7 +304,7 @@ const BarcodeScanner = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1">Size</label>
-                  <Input type="number" value={form.serving_size} onChange={(e) => setForm({ ...form, serving_size: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="bg-background" />
+                  <Input type="number" value={form.serving_size || ""} onChange={(e) => setForm({ ...form, serving_size: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="bg-background" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest pl-1">Unit</label>
@@ -317,19 +317,19 @@ const BarcodeScanner = () => {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase pl-1">Calories</label>
-                    <Input type="number" value={form.calories} onChange={(e) => setForm({ ...form, calories: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
+                    <Input type="number" value={form.calories || ""} onChange={(e) => setForm({ ...form, calories: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase pl-1">Protein (g)</label>
-                    <Input type="number" value={form.protein} onChange={(e) => setForm({ ...form, protein: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
+                    <Input type="number" value={form.protein || ""} onChange={(e) => setForm({ ...form, protein: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase pl-1">Carbs (g)</label>
-                    <Input type="number" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
+                    <Input type="number" value={form.carbs || ""} onChange={(e) => setForm({ ...form, carbs: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-medium text-muted-foreground uppercase pl-1">Fats (g)</label>
-                    <Input type="number" value={form.fats} onChange={(e) => setForm({ ...form, fats: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
+                    <Input type="number" value={form.fats || ""} onChange={(e) => setForm({ ...form, fats: e.target.value === "" ? "" : parseFloat(e.target.value) })} className="h-9 bg-background" />
                   </div>
                 </div>
               </div>

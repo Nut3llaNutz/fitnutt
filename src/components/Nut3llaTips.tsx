@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Nut3lla } from "./Nut3lla";
 import { useSettings } from "@/hooks/useSettings";
+import { useTutorial } from "@/contexts/TutorialContext";
 
 const NUT3LLA_TIPS = [
   "Don't skip leg day. Seriously.",
@@ -31,7 +32,7 @@ const NUT3LLA_TIPS = [
   "Small wins every day lead to massive results every year.",
   "Focus on the fuel. Treat your body like a Ferrari, not a trash can.",
   "Sweat is just your fat crying. Make it sob!",
-  "The only person you should try to be better than is the person you were yesterday."
+  "The only person you should try to be better than is the person you were yesterday.",
 ];
 
 // Tips pop up every 1 minute
@@ -39,6 +40,7 @@ const TIP_INTERVAL = 60000;
 
 export const Nut3llaTips = () => {
   const { settings } = useSettings();
+  const { showInvite, isActive } = useTutorial();
   const [activeTip, setActiveTip] = useState<string | null>(null);
   const [hasDialog, setHasDialog] = useState(false);
   const lastIndex = React.useRef<number>(-1);
@@ -54,7 +56,11 @@ export const Nut3llaTips = () => {
 
   const popRandomTip = useCallback(() => {
     // Suppress tips if the tutorial overlay or rank onboarding is showing
-    if (document.getElementById("tutorial-overlay") || document.getElementById("rank-guest-popup")) return;
+    if (
+      document.getElementById("tutorial-overlay") ||
+      document.getElementById("rank-guest-popup")
+    )
+      return;
 
     let index;
     do {
@@ -63,7 +69,7 @@ export const Nut3llaTips = () => {
 
     lastIndex.current = index;
     setActiveTip(NUT3LLA_TIPS[index]);
-    
+
     // Auto-dismiss the bubble after 8 seconds
     setTimeout(() => {
       setActiveTip(null);
@@ -71,6 +77,8 @@ export const Nut3llaTips = () => {
   }, []);
 
   useEffect(() => {
+    // Suppress tips during tutorial invite and active tour
+    if (showInvite || isActive) return;
     // Only run if tips are enabled, or null (default true)
     if (settings && settings.nut3lla_tips_enabled !== false) {
       let timeoutId: NodeJS.Timeout;
@@ -91,12 +99,12 @@ export const Nut3llaTips = () => {
   if (!activeTip) return null;
 
   return (
-    <Nut3lla 
+    <Nut3lla
       message={activeTip}
       position="bottom-right"
       variant="compact"
       onClose={() => setActiveTip(null)}
-      className={`z-[200] transition-transform duration-500 ${hasDialog ? "translate-y-24" : "translate-y-0"}`}
+      className={`z-[200] transition-transform duration-500 ${hasDialog ? "translate-y-18" : "translate-y-0"}`}
     />
   );
 };

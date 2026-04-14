@@ -12,6 +12,21 @@ const VAPID_SUBJECT = "mailto:admin@fitnutt.netlify.app";
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+// Must be defined at top-level so it's in scope during serve()
+async function sendPush(supabase: any, sub: any, payload: string) {
+  try {
+    await webpush.sendNotification({
+      endpoint: sub.endpoint,
+      keys: { p256dh: sub.p256dh, auth: sub.auth }
+    }, payload);
+  } catch (e: any) {
+    if (e?.statusCode === 404 || e?.statusCode === 410) {
+      await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    }
+    throw e;
+  }
+}
+
 serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const now = new Date();
@@ -95,7 +110,7 @@ serve(async (req) => {
         if ((mealCount || 0) < expectedMeals) {
           payload = JSON.stringify({
             title: "Time to log " + mealName + "? 🍽️",
-            body: "Keep that streak alive! Don't forget to fuel the engine and log your progress."
+            body: "Keep that streak alive! Don't forget to log your progress."
           });
         }
       }
@@ -130,7 +145,7 @@ serve(async (req) => {
       // Send to devices
       for (const sub of userSubs) {
         try {
-          await sendPush(sub, payload); // Note: I assume sendPush is defined or I use webpush directly
+          await sendPush(supabase, sub, payload);
           sentCount++;
         } catch(e: any) {
           console.error('Push failed vs', sub.endpoint, e);
@@ -143,19 +158,4 @@ serve(async (req) => {
   }
 
   return new Response(JSON.stringify({ success: true, sent: sentCount }), { headers: { 'Content-Type': 'application/json' } });
-
-  // Add the internal push sender since this file doesn't seem to have the standalone sendPush helper exactly like supplement-nag
-  async function sendPush(sub: any, payload: string) {
-    try {
-      await webpush.sendNotification({
-        endpoint: sub.endpoint,
-        keys: { p256dh: sub.p256dh, auth: sub.auth }
-      }, payload);
-    } catch(e: any) {
-      if (e?.statusCode === 404 || e?.statusCode === 410) {
-        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-      }
-      throw e;
-    }
-  }
 });

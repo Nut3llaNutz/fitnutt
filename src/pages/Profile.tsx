@@ -158,7 +158,14 @@ const Profile = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+      <div className="flex items-center justify-between px-1">
+        <h1
+          className="text-3xl font-bold text-foreground tracking-tight"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          Settings
+        </h1>
+      </div>
 
       {/* Account */}
       <div className="bg-card rounded-xl p-4 space-y-1">
@@ -246,7 +253,7 @@ const Profile = () => {
             <Label className="text-xs text-muted-foreground">Weight (kg)</Label>
             <Input
               type="number"
-              value={form.weight_kg}
+              value={form.weight_kg === 0 ? "" : form.weight_kg}
               onChange={(e) =>
                 setForm((f) => ({ ...f, weight_kg: Number(e.target.value) }))
               }
@@ -257,7 +264,7 @@ const Profile = () => {
             <Label className="text-xs text-muted-foreground">Height (cm)</Label>
             <Input
               type="number"
-              value={form.height_cm}
+              value={form.height_cm === 0 ? "" : form.height_cm}
               onChange={(e) =>
                 setForm((f) => ({ ...f, height_cm: Number(e.target.value) }))
               }
@@ -268,7 +275,7 @@ const Profile = () => {
             <Label className="text-xs text-muted-foreground">Age</Label>
             <Input
               type="number"
-              value={form.age}
+              value={form.age === 0 ? "" : form.age}
               onChange={(e) =>
                 setForm((f) => ({ ...f, age: Number(e.target.value) }))
               }
@@ -318,7 +325,7 @@ const Profile = () => {
             <label className="text-xs text-muted-foreground">Calories</label>
             <Input
               type="number"
-              value={form.calorie_target}
+              value={form.calorie_target === 0 ? "" : form.calorie_target}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -331,7 +338,7 @@ const Profile = () => {
             <label className="text-xs text-muted-foreground">Protein (g)</label>
             <Input
               type="number"
-              value={form.protein_target}
+              value={form.protein_target === 0 ? "" : form.protein_target}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -344,7 +351,7 @@ const Profile = () => {
             <label className="text-xs text-muted-foreground">Carbs (g)</label>
             <Input
               type="number"
-              value={form.carb_target}
+              value={form.carb_target === 0 ? "" : form.carb_target}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -357,7 +364,7 @@ const Profile = () => {
             <label className="text-xs text-muted-foreground">Fats (g)</label>
             <Input
               type="number"
-              value={form.fat_target}
+              value={form.fat_target === 0 ? "" : form.fat_target}
               onChange={(e) =>
                 setForm({
                   ...form,

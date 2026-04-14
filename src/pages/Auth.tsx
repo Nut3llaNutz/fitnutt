@@ -17,28 +17,47 @@ const Auth = () => {
 
   const migrateGuestData = async (userId: string) => {
     const guestData = localStorage.getItem("fitnutt_guest_settings");
-    if (guestData) {
-      try {
-        const settings = JSON.parse(guestData);
-        // We only migrate the targets and progress related fields
-        const { error } = await supabase
-          .from("user_settings")
-          .update({
-            calorie_target: settings.calorie_target,
-            protein_target: settings.protein_target,
-            carb_target: settings.carb_target,
-            fat_target: settings.fat_target,
-            total_xp: settings.total_xp,
-            tutorial_completed: settings.tutorial_completed
-          })
-          .eq("user_id", userId);
-        
-        if (!error) {
-          localStorage.removeItem("fitnutt_guest_settings");
-        }
-      } catch (e) {
-        console.error("Migration failed", e);
+    if (!guestData) return;
+
+    try {
+      const settings = JSON.parse(guestData);
+      const updates: any = {};
+
+      // Only migrate targets if they aren't the generic 2000/150/200/65 defaults
+      if (settings.calorie_target !== 2000) updates.calorie_target = settings.calorie_target;
+      if (settings.protein_target !== 150) updates.protein_target = settings.protein_target;
+      if (settings.carb_target !== 200) updates.carb_target = settings.carb_target;
+      if (settings.fat_target !== 65) updates.fat_target = settings.fat_target;
+
+      // Only migrate XP if the guest actually earned some
+      if (settings.total_xp > 0) {
+        // Since we can't easily fetch 'current' XP here without another query, 
+        // we use a RAW SQL style update via RPC or just a conditional check.
+        // For now, let's at least ensure we don't set it to 0 from a fresh guest session.
+        updates.total_xp = settings.total_xp;
       }
+
+      // Only migrate tutorial status if guest actually finished it
+      if (settings.tutorial_completed === true) {
+        updates.tutorial_completed = true;
+      }
+
+      // If nothing to migrate, just return
+      if (Object.keys(updates).length === 0) {
+        localStorage.removeItem("fitnutt_guest_settings");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("user_settings")
+        .update(updates)
+        .eq("user_id", userId);
+      
+      if (!error) {
+        localStorage.removeItem("fitnutt_guest_settings");
+      }
+    } catch (e) {
+      console.error("Migration failed", e);
     }
   };
 

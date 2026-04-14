@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useDate } from "@/contexts/DateContext";
-import { TutorialFlow } from "@/components/TutorialFlow";
+import { getTodayStr, formatLocalDate, parseLocalDate } from "@/lib/dateUtils";
+
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
 import { useSettings, Supplement } from "@/hooks/useSettings";
@@ -53,7 +54,6 @@ const mealTypeConfig: Record<string, { label: string; icon: React.ElementType }>
   snack: { label: "Snacks", icon: Coffee },
 };
 
-const todayStr = () => new Date().toISOString().split("T")[0];
 
 const Index = () => {
   const { currentDate, setCurrentDate } = useDate();
@@ -70,9 +70,9 @@ const Index = () => {
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
 
   const shiftDate = (days: number) => {
-    const d = new Date(currentDate);
+    const d = parseLocalDate(currentDate);
     d.setDate(d.getDate() + days);
-    setCurrentDate(d.toISOString().split("T")[0]);
+    setCurrentDate(formatLocalDate(d));
     setExpandedMacro(null);
   };
 
@@ -191,12 +191,12 @@ const Index = () => {
               size="icon"
               onClick={() => shiftDate(-1)}
               className="h-8 w-8 text-muted-foreground transition-all hover:bg-muted active:scale-90"
-              disabled={currentDate <= (user?.created_at?.split("T")[0] || todayStr())}
+              disabled={currentDate <= (user?.created_at?.split("T")[0] || getTodayStr())}
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold text-foreground min-w-[110px] text-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-              {currentDate === todayStr()
+              {currentDate === getTodayStr()
                 ? "Today"
                 : new Date(currentDate).toLocaleDateString(undefined, {
                     weekday: "short",
@@ -209,7 +209,7 @@ const Index = () => {
               size="icon"
               onClick={() => shiftDate(1)}
               className="h-8 w-8 text-muted-foreground transition-all hover:bg-muted active:scale-90"
-              disabled={currentDate >= todayStr()}
+              disabled={currentDate >= getTodayStr()}
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
@@ -304,7 +304,7 @@ const Index = () => {
           </div>
         )}
 
-        <div className="space-y-4 pb-4">
+        <div className="space-y-4 pb-4" data-tour="meal-log">
           <h2 className="text-xs font-bold text-primary uppercase tracking-[0.2em] px-1">Fuel Timeline</h2>
           {entriesLoading ? (
             <Skeleton className="h-20 w-full rounded-xl" />
@@ -389,7 +389,7 @@ const Index = () => {
                 />
               </div>
               <Button onClick={handleCopyFromDate} className="w-full h-12 text-md font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20">
-                Copy to {currentDate === todayStr() ? "Today" : currentDate}
+                Copy to {currentDate === getTodayStr() ? "Today" : currentDate}
               </Button>
             </div>
           </DialogContent>
