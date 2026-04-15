@@ -27,8 +27,37 @@ async function sendPush(supabase: any, sub: any, payload: string) {
   }
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  
+  // Handle manual push tests from the frontend Profile page
+  if (req.method === 'POST') {
+    try {
+      const body = await req.json();
+      if (body.test_user_id) {
+        const { data: subs } = await supabase.from('push_subscriptions').select('*').eq('user_id', body.test_user_id);
+        for (const sub of subs || []) {
+          await sendPush(supabase, sub, JSON.stringify({ 
+            title: 'FitNutt Test! 🚀', 
+            body: 'Notifications are verified natively over the backend!' 
+          }));
+        }
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+      }
+    } catch(e) {
+      // Fall through to regular logic if it's not a valid JSON test payload
+    }
+  }
+
   const now = new Date();
   
   // Fetch users and their push subscriptions

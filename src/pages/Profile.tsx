@@ -555,11 +555,11 @@ const Profile = () => {
                   });
                   setTimeout(async () => {
                     try {
-                      const reg = await navigator.serviceWorker.ready;
-                      await reg.showNotification("FitNutt Test! 🚀", {
-                        body: "Boom! Notifications are locked and loaded. Time to grind.",
-                        icon: "/fitnutt-logo.png",
+                      const { supabase } = await import("@/integrations/supabase/client");
+                      const { error } = await supabase.functions.invoke("send-reminders", {
+                        body: { test_user_id: user?.id }
                       });
+                      if (error) throw error;
                     } catch (e) {
                       console.error("Test push failed:", e);
                     }
