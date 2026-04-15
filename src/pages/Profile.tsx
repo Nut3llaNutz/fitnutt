@@ -172,24 +172,16 @@ const Profile = () => {
         return;
       }
 
-      const ok = await subscribe();
-      if (ok) {
+      const result = await subscribe();
+      if (result.ok) {
         toast({ title: "Notifications enabled! 🔔" });
       } else {
-        const currentPerm = typeof window !== "undefined" && window.Notification ? window.Notification.permission : permission;
-        if (currentPerm === "denied") {
-          toast({
-            title: "Notifications blocked",
-            description: "Enable them in your device settings.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Action Required",
-            description: "On iOS, you must add this app to your Home Screen (Share -> Add to Home Screen) first!",
-            duration: 8000,
-          });
-        }
+        toast({
+          title: `Subscribe failed at: ${result.step}`,
+          description: result.error || "Unknown error",
+          variant: "destructive",
+          duration: 15000,
+        });
       }
     }
   };
@@ -536,38 +528,6 @@ const Profile = () => {
                   setForm({ ...form, notification_time: e.target.value })
                 }
               />
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 px-3 bg-card"
-                onClick={() => {
-                  if (Notification.permission !== "granted" && !isSubscribed) {
-                    toast({
-                      title: "Not Enabled",
-                      description: "Toggle a reminder switch above first to grant permission.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  toast({
-                    title: "Sending in 5 seconds... ⏱️",
-                    description: "Close or background the app to see it!",
-                  });
-                  setTimeout(async () => {
-                    try {
-                      const { supabase } = await import("@/integrations/supabase/client");
-                      const { error } = await supabase.functions.invoke("send-reminders", {
-                        body: { test_user_id: user?.id }
-                      });
-                      if (error) throw error;
-                    } catch (e) {
-                      console.error("Test push failed:", e);
-                    }
-                  }, 5000);
-                }}
-              >
-                <Bell className="h-4 w-4 mr-2 text-primary" /> Test
-              </Button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 italic">
               This time is used for your supplement and streak reminders.

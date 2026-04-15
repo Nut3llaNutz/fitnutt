@@ -33,13 +33,13 @@ export const usePushSubscription = () => {
     }
   }, []);
 
-  const subscribe = useCallback(async () => {
-    if (!user || !isSupported) return false;
+  const subscribe = useCallback(async (): Promise<{ ok: boolean; step?: string; error?: string }> => {
+    if (!user || !isSupported) return { ok: false, step: "pre-check", error: `user=${!!user}, supported=${isSupported}` };
 
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm);
-      if (perm !== "granted") return false;
+      if (perm !== "granted") return { ok: false, step: "permission", error: `Permission result: ${perm}` };
 
       // Rely on the primary Vite PWA service worker which now perfectly includes our push logic
       const reg = await navigator.serviceWorker.ready;
@@ -62,14 +62,14 @@ export const usePushSubscription = () => {
 
       if (error) {
         console.error("Failed to save push subscription:", error);
-        return false;
+        return { ok: false, step: "db-save", error: error.message };
       }
 
       setIsSubscribed(true);
-      return true;
-    } catch (err) {
+      return { ok: true };
+    } catch (err: any) {
       console.error("Push subscription error:", err);
-      return false;
+      return { ok: false, step: "exception", error: err?.message || String(err) };
     }
   }, [user, isSupported]);
 
