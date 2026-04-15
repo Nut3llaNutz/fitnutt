@@ -514,8 +514,8 @@ Android - Browser Menu > Add to Homescreen > Install`;
 
       {/* Streak Dialog */}
       <Dialog open={isStreakDialogOpen} onOpenChange={setIsStreakDialogOpen}>
-        <DialogContent 
-          hideClose 
+        <DialogContent
+          hideClose
           className="w-[calc(100%-2.5rem)] max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-transparent"
         >
           <div className="bg-background/95 backdrop-blur-2xl p-8 relative flex flex-col items-center">
@@ -580,10 +580,10 @@ Android - Browser Menu > Add to Homescreen > Install`;
       <Nut3llaTips />
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background pb-[env(safe-area-inset-bottom)] gpu-layer"
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background pb-[calc(max(1.5rem,env(safe-area-inset-bottom))-10px)] sm:pb-2 gpu-layer"
         style={{ filter: "drop-shadow(0 -4px 16px rgba(0, 0, 0, 0.1))" }}
       >
-        <div className="max-w-md mx-auto relative grid grid-cols-5 py-2">
+        <div className="max-w-md mx-auto relative grid grid-cols-5 pt-2">
           {/* Curved notch extending up from the navbar seamlessly with a deep overlap to seal any sub-pixel gap */}
           <svg
             className="absolute left-0 w-full pointer-events-none z-10"

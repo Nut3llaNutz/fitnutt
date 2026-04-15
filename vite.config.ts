@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      devOptions: { enabled: false },
+      devOptions: { enabled: true },
       includeAssets: ["fitnutt-logo.png"],
       manifest: {
         name: "FitNutt — Fitness Tracker",

@@ -146,6 +146,54 @@ const Profile = () => {
     saveSupplements(supplements.filter((s) => s.id !== id));
   };
 
+  const handleToggleReminder = async (
+    type: "meal_reminders_enabled" | "supp_reminders_enabled",
+    checked: boolean
+  ) => {
+    setForm((prev) => ({ ...prev, [type]: checked }));
+
+    if (checked && !isSubscribed) {
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        toast({
+          title: "Local HTTP Blocked 🔒",
+          description: "Apple blocks push notifications on local 'http://' IPs. You can only test this on production (Netlify HTTPS) or via ngrok!",
+          duration: 8000,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (!isSupported) {
+        toast({
+          title: "Install Required 📱",
+          description: "Tap the Share icon and 'Add to Home Screen' to enable notifications on this device.",
+          duration: 8000,
+        });
+        return;
+      }
+
+      const ok = await subscribe();
+      if (ok) {
+        toast({ title: "Notifications enabled! 🔔" });
+      } else {
+        const currentPerm = typeof window !== "undefined" && window.Notification ? window.Notification.permission : permission;
+        if (currentPerm === "denied") {
+          toast({
+            title: "Notifications blocked",
+            description: "Enable them in your device settings.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Action Required",
+            description: "On iOS, you must add this app to your Home Screen (Share -> Add to Home Screen) first!",
+            duration: 8000,
+          });
+        }
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -455,9 +503,7 @@ const Profile = () => {
             </div>
             <Switch
               checked={form.meal_reminders_enabled}
-              onCheckedChange={(c) =>
-                setForm((prev) => ({ ...prev, meal_reminders_enabled: c }))
-              }
+              onCheckedChange={(c) => handleToggleReminder("meal_reminders_enabled", c)}
             />
           </div>
 
@@ -472,9 +518,7 @@ const Profile = () => {
             </div>
             <Switch
               checked={form.supp_reminders_enabled}
-              onCheckedChange={(c) =>
-                setForm((prev) => ({ ...prev, supp_reminders_enabled: c }))
-              }
+              onCheckedChange={(c) => handleToggleReminder("supp_reminders_enabled", c)}
             />
           </div>
 
@@ -482,53 +526,54 @@ const Profile = () => {
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               Custom Schedule Time
             </label>
-            <Input
-              type="time"
-              className="mt-1 h-9 bg-background border-border"
-              style={{ WebkitAppearance: "none" }}
-              value={form.notification_time}
-              onChange={(e) =>
-                setForm({ ...form, notification_time: e.target.value })
-              }
-            />
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                type="time"
+                className="h-9 bg-background border-border flex-1"
+                style={{ WebkitAppearance: "none" }}
+                value={form.notification_time}
+                onChange={(e) =>
+                  setForm({ ...form, notification_time: e.target.value })
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 px-3 bg-card"
+                onClick={() => {
+                  if (Notification.permission !== "granted" && !isSubscribed) {
+                    toast({
+                      title: "Not Enabled",
+                      description: "Toggle a reminder switch above first to grant permission.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  toast({
+                    title: "Sending in 5 seconds... ⏱️",
+                    description: "Close or background the app to see it!",
+                  });
+                  setTimeout(async () => {
+                    try {
+                      const reg = await navigator.serviceWorker.ready;
+                      await reg.showNotification("FitNutt Test! 🚀", {
+                        body: "Boom! Notifications are locked and loaded. Time to grind.",
+                        icon: "/fitnutt-logo.png",
+                      });
+                    } catch (e) {
+                      console.error("Test push failed:", e);
+                    }
+                  }, 5000);
+                }}
+              >
+                <Bell className="h-4 w-4 mr-2 text-primary" /> Test
+              </Button>
+            </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 italic">
               This time is used for your supplement and streak reminders.
             </p>
           </div>
         </div>
-
-        {isSupported && (
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <div className="flex items-center gap-2">
-              <div
-                className={`p-1.5 rounded-lg ${isSubscribed ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground"}`}
-              >
-                <Bell className="h-3.5 w-3.5" />
-              </div>
-              <span className="text-card-foreground text-sm font-medium">
-                Device Notifications
-              </span>
-            </div>
-            <Switch
-              checked={isSubscribed}
-              onCheckedChange={async (checked) => {
-                if (checked) {
-                  const ok = await subscribe();
-                  if (ok) toast({ title: "Notifications enabled! 🔔" });
-                  else if (permission === "denied")
-                    toast({
-                      title: "Notifications blocked",
-                      description: "Enable them in your browser settings.",
-                      variant: "destructive",
-                    });
-                } else {
-                  await unsubscribe();
-                  toast({ title: "Notifications disabled" });
-                }
-              }}
-            />
-          </div>
-        )}
       </div>
 
       <Button onClick={handleSave} className="w-full">
