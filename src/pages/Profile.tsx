@@ -174,7 +174,7 @@ const Profile = () => {
 
       const result = await subscribe();
       if (result.ok) {
-        toast({ title: "Notifications enabled! 🔔" });
+        toast({ title: "Notifications enabled v2.0! 🔔" });
       } else {
         toast({
           title: `Subscribe failed at: ${result.step}`,

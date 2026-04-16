@@ -181,5 +181,5 @@ serve(async (req: Request) => {
     }
   }
 
-  return new Response(JSON.stringify({ success: true, sent: sentCount }), { headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ success: true, sent: sentCount, version: "2.0.0" }), { headers: { 'Content-Type': 'application/json' } });
 });

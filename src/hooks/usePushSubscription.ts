@@ -33,7 +33,7 @@ export const usePushSubscription = () => {
     }
   }, []);
 
-  const subscribe = useCallback(async (): Promise<{ ok: boolean; step?: string; error?: string }> => {
+  const subscribe = useCallback(async (): Promise<{ ok: boolean; step?: string; error?: string; version?: string }> => {
     if (!user || !isSupported) return { ok: false, step: "pre-check", error: `user=${!!user}, supported=${isSupported}` };
 
     try {
@@ -84,7 +84,7 @@ export const usePushSubscription = () => {
       }
 
       setIsSubscribed(true);
-      return { ok: true };
+      return { ok: true, version: "2.0.0" };
     } catch (err: any) {
       const msg = err?.message || String(err);
       alert("Push Registration Error: " + msg);
