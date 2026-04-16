@@ -533,8 +533,10 @@ const Profile = () => {
               This time is used for your supplement and streak reminders.
             </p>
           </div>
+
         </div>
       </div>
+
 
       <Button onClick={handleSave} className="w-full">
         Save Settings
