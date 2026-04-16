@@ -37,39 +37,59 @@ export const usePushSubscription = () => {
     if (!user || !isSupported) return { ok: false, step: "pre-check", error: `user=${!!user}, supported=${isSupported}` };
 
     try {
+      // 1. Critical: Request permission immediately to maintain user gesture context
       const perm = await Notification.requestPermission();
       setPermission(perm);
-      if (perm !== "granted") return { ok: false, step: "permission", error: `Permission result: ${perm}` };
+      if (perm !== "granted") {
+        alert("Notification Permission Denied: " + perm);
+        return { ok: false, step: "permission", error: `Permission result: ${perm}` };
+      }
 
-      // Rely on the primary Vite PWA service worker which now perfectly includes our push logic
+      // 2. Safeguard VAPID Key
+      if (!VAPID_PUBLIC_KEY) {
+        alert("CRITICAL ERROR: VITE_VAPID_PUBLIC_KEY is not defined in the production build!");
+        return { ok: false, step: "config", error: "Missing VAPID Key" };
+      }
+
       const reg = await navigator.serviceWorker.ready;
-
+      
+      // 3. Robust Subscription
+      // Using Uint8Array directly (without .buffer) is more reliable on iOS Safari
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
+        applicationServerKey: applicationServerKey as any,
       });
 
       const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        throw new Error("Push subscription returned invalid/empty keys");
+      }
+
+      // 4. Database Sync
       const { error } = await supabase.from("push_subscriptions").upsert(
         {
           user_id: user.id,
-          endpoint: json.endpoint!,
-          p256dh: json.keys!.p256dh,
-          auth: json.keys!.auth,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
         },
         { onConflict: "user_id,endpoint" }
       );
 
       if (error) {
-        console.error("Failed to save push subscription:", error);
+        alert("Database Sync Failed: " + error.message);
         return { ok: false, step: "db-save", error: error.message };
       }
 
       setIsSubscribed(true);
       return { ok: true };
     } catch (err: any) {
+      const msg = err?.message || String(err);
+      alert("Push Registration Error: " + msg);
       console.error("Push subscription error:", err);
-      return { ok: false, step: "exception", error: err?.message || String(err) };
+      return { ok: false, step: "exception", error: msg };
     }
   }, [user, isSupported]);
 
