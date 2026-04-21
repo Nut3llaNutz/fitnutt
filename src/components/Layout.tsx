@@ -73,8 +73,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const { entries } = useMealEntries(log?.id);
   const { settings } = useSettings();
 
-  // Pre-load logo as Base64 to prevent iOS Safari from missing it during capture
-
   useEffect(() => {
     const preloadLogo = async () => {
       try {
@@ -92,8 +90,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     preloadLogo();
   }, []);
 
-
-
   const totals = entries.reduce(
     (acc, entry) => ({
       calories: acc.calories + (entry.calories || 0) * entry.quantity,
@@ -108,17 +104,13 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     queryKey: ["recent_logs_streak", user?.id],
     enabled: !!settings,
     queryFn: async () => {
-      const { data, error } =
-        await import("@/integrations/supabase/client").then(
-          (m) =>
-            m.supabase
-              .from("daily_logs")
-              .select(
-                "date, creatine_taken, whey_taken, supplements_taken, meal_entries(id)",
-              )
-              .order("date", { ascending: false })
-              .limit(60), // Fetch more to ensure we find enough active days
-        );
+      const { data, error } = await supabase
+        .from("daily_logs")
+        .select(
+          "date, creatine_taken, whey_taken, supplements_taken, meal_entries(id)",
+        )
+        .order("date", { ascending: false })
+        .limit(60);
       if (error) throw error;
       return data;
     },
@@ -127,7 +119,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const streak = (() => {
     if (!recentLogs || recentLogs.length === 0) return 0;
 
-    // Filter for days that actually have activity
     const activeLogs = recentLogs.filter((log: any) => {
       const hasSupps =
         log.creatine_taken ||
@@ -142,16 +133,14 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
     const today = parseLocalDate(getTodayStr());
 
-    // Check if the most recent activity was today or yesterday
     const lastActiveDate = parseLocalDate(activeLogs[0].date);
     const diffDaysFromToday = Math.floor(
       (today.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    // If no activity today OR yesterday, streak is dead
     if (diffDaysFromToday > 1) return 0;
 
-    let count = 1; // We have at least one active day (today or yesterday)
+    let count = 1;
     for (let i = 0; i < activeLogs.length - 1; i++) {
       const curr = parseLocalDate(activeLogs[i].date);
       const prev = parseLocalDate(activeLogs[i + 1].date);
@@ -159,7 +148,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       const diff = Math.floor(
         (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24),
       );
-      // If the gap between active days is exactly 1 day, the streak continues
       if (diff === 1) count++;
       else break;
     }
@@ -177,7 +165,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     if (!cardRef.current) return;
     setIsGenerating(true);
 
-    // Ensure all images in the card are loaded and decoded
     const images = Array.from(cardRef.current.querySelectorAll("img"));
     await Promise.all(
       images.map(async (img) => {
@@ -189,14 +176,11 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       }),
     );
 
-    // Final small delay to ensure any layout shifts or lazy-loaded fonts stabilized
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     try {
-      // Use dynamic import so it works whether installed locally OR pulling from CDN
       const module = await import(/* @vite-ignore */ "html-to-image").catch(
         async () => {
-          // Fallback for CDN if local node_modules is still syncing
           return await import(
             /* @vite-ignore */ "https://esm.sh/html-to-image@1.11.11"
           );
@@ -205,18 +189,14 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
       const toPngLocal = (module as any).toPng;
 
-      // iOS Safari "Warm up" - The first call often fails to render images properly
-      // By calling it once and ignoring the result, we force the browser to paint the buffer.
       try {
         await toPngLocal(cardRef.current, { cacheBust: true });
-      } catch (e) {
-        // Silently ignore warmup errors
-      }
+      } catch (e) {}
 
       const dataUrl = await toPngLocal(cardRef.current, {
         width: 1080,
         height: 1920,
-        pixelRatio: 1, // Keep it exactly 1080x1920
+        pixelRatio: 1,
         style: {
           transform: "scale(1)",
         },
@@ -238,7 +218,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             text: `Just hit my macros for ${displayDate === getTodayStr() ? "today" : displayDate}. Join the grind! 💪🏻 #FitNutt`,
           });
         } else {
-          // Fallback if file sharing isn't supported on this specific mobile browser
           const link = document.createElement("a");
           link.download = `fitnutt-progress-${displayDate}.png`;
           link.href = dataUrl;
@@ -249,7 +228,6 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           });
         }
       } else {
-        // Direct download for desktop
         const link = document.createElement("a");
         link.download = `fitnutt-progress-${displayDate}.png`;
         link.href = dataUrl;
@@ -260,12 +238,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         });
       }
     } catch (err: any) {
-      // If the user cancelled the share (on mobile), common on iPhone, don't show an error
       if (err.name === "AbortError") {
-        console.log("Share aborted by user");
         return;
       }
-
       console.error("Export error:", err);
       toast({
         title: "Export Error",
@@ -279,21 +254,12 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   };
 
   const handleInviteFriends = () => {
-    const text = `Stop overcomplicating your fitness. Use FitNutt to track your fuel and training. 🚀
-
-Join the pack: https://fitnutt.netlify.app
-
-📲 How to install (PWA):
-iOS - Share > Add to Homescreen
-Android - Browser Menu > Add to Homescreen > Install`;
-
+    const text = `Stop overcomplicating your fitness. Use FitNutt to track your fuel and training. 🚀\n\nJoin the pack: https://fitnutt.netlify.app\n\n📲 How to install (PWA):\niOS - Share > Add to Homescreen\nAndroid - Browser Menu > Add to Homescreen > Install`;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
     if (isMobile && navigator.share) {
       navigator.share({
         title: "Join FitNutt",
         text,
-        // URL removed here as it's already in the 'text' string and many apps append it twice
       });
     } else {
       navigator.clipboard.writeText(text);
@@ -302,7 +268,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
     setIsShareOpen(false);
   };
 
-  const { updateSettings, addXP } = useSettings();
+  const { updateSettings } = useSettings();
 
   const handleLogoToggle = async () => {
     if (!settings || !user) return;
@@ -314,7 +280,6 @@ Android - Browser Menu > Add to Homescreen > Install`;
     let newTaps = (s.logo_taps_count || 0) + 1;
     let newStreak = s.logo_tap_streak || 0;
 
-    // Streak logic
     if (!lastDate) {
       newStreak = 1;
     } else if (lastDate !== today) {
@@ -337,57 +302,46 @@ Android - Browser Menu > Add to Homescreen > Install`;
       logo_tap_streak: newStreak,
     };
 
-    // Trigger 1: 5 Total Taps
     if (newTaps === 5 && !s.logo_easter_egg_triggered) {
       const xpBoost = calculateXpForLevelJump(s.total_xp || 0, 1);
       updates.total_xp = (s.total_xp || 0) + xpBoost;
       updates.logo_easter_egg_triggered = true;
-      setEasterEggMessage(
-        "LEZZGOO! I love that energy! You've been pumping that logo like a pro. Keep it up, you just jumped a LEVEL! 💪",
-      );
-    }
-    // Trigger 2: 5 Day Streak
-    else if (newStreak === 5 && !s.streak_easter_egg_triggered) {
+      setEasterEggMessage("LEZZGOO! I love that energy! You just jumped a LEVEL! 💪");
+    } else if (newStreak === 5 && !s.streak_easter_egg_triggered) {
       const xpBoost = calculateXpForLevelJump(s.total_xp || 0, 5);
       updates.total_xp = (s.total_xp || 0) + xpBoost;
       updates.streak_easter_egg_triggered = true;
-      setEasterEggMessage(
-        "UNREAL CONSISTENCY! 5 days of absolute dedication. You're a genetic freak! I'm jumping you 5 LEVELS ahead. Stay hungry! 🔥",
-      );
+      setEasterEggMessage("UNREAL CONSISTENCY! 5 days! Stay hungry! 🔥");
     }
 
     updateSettings.mutate(updates);
   };
 
   return (
-    <div className="h-svh overflow-hidden bg-background w-full relative">
+    <div className="min-h-screen w-full bg-background relative">
       <div className="fixed inset-0 bg-background -z-[50]" />
       {isActive && <TutorialOverlay />}
       {showInvite && !isActive && <TutorialInvite />}
 
-      {/* Glassy Top Nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer pt-[env(safe-area-inset-top,0px)]">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between pointer-events-auto">
+      <header 
+        className="fixed top-0 left-0 right-0 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer z-50"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) - 8px)" }}
+      >
+        <div className="max-w-md mx-auto px-4 py-2 flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-2">
             <AnimatedLogo className="h-8 w-8" onToggle={handleLogoToggle} />
-            <span
-              className="font-bold text-lg text-foreground"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-            >
+            <span className="text-xl font-bold tracking-tight text-foreground leading-none">
               FitNutt
             </span>
           </div>
+
           <div className="flex items-center gap-2">
             <button
               data-tour="streak-btn"
-              onClick={() => {
-                setIsStreakDialogOpen(true);
-              }}
+              onClick={() => setIsStreakDialogOpen(true)}
               className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-colors"
             >
-              <Flame
-                className={`h-5 w-5 ${streak > 0 ? "fill-orange-500" : ""}`}
-              />
+              <Flame className={`h-5 w-5 ${streak > 0 ? "fill-orange-500" : ""}`} />
               <span className="font-bold text-sm tracking-tight">{streak}</span>
             </button>
             <button
@@ -401,53 +355,46 @@ Android - Browser Menu > Add to Homescreen > Install`;
         </div>
       </header>
 
-      {/* Share Progress Dialog */}
+      <main className="w-full">
+        <div 
+          className="max-w-md mx-auto w-full px-4 lg:mt-3"
+          style={{ 
+            paddingTop: "calc(4rem + env(safe-area-inset-top, 0px))",
+            paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))"
+          }}
+        >
+          {children}
+        </div>
+      </main>
+
+      <Nut3llaTips />
+
       <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
         <DialogContent className="w-[calc(100%-2.5rem)] max-w-[400px] rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">
-              Share Progress
-            </DialogTitle>
+            <DialogTitle className="text-xl font-bold">Share Progress</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
-            <button
-              onClick={handleShareCard}
-              disabled={isGenerating}
-              className="w-full flex items-center justify-between p-4 bg-primary text-primary-foreground rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
-            >
+            <button onClick={handleShareCard} disabled={isGenerating} className="w-full flex items-center justify-between p-4 bg-primary text-primary-foreground rounded-2xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
               <div className="flex items-center gap-3 text-left">
                 <div className="p-2 bg-white/20 rounded-xl">
-                  {isGenerating ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <ImageIcon className="h-5 w-5" />
-                  )}
+                  {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
                 </div>
                 <div>
-                  <p className="font-black uppercase text-[10px] tracking-widest opacity-70">
-                    Story Style
-                  </p>
+                  <p className="font-black uppercase text-[10px] tracking-widest opacity-70">Story Style</p>
                   <p className="font-bold text-sm">Generate Social Card</p>
                 </div>
               </div>
               <ChevronRight className="h-5 w-5 opacity-50" />
             </button>
-
-            <button
-              onClick={handleInviteFriends}
-              className="w-full flex items-center justify-between p-4 bg-muted/30 rounded-2xl transition-all active:scale-95 border border-muted"
-            >
+            <button onClick={handleInviteFriends} className="w-full flex items-center justify-between p-4 bg-muted/30 rounded-2xl transition-all active:scale-95 border border-muted">
               <div className="flex items-center gap-3 text-left">
                 <div className="p-2 bg-muted rounded-xl">
                   <Copy className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">
-                    Invite Pack
-                  </p>
-                  <p className="font-bold text-sm text-foreground">
-                    Copy Invite Link
-                  </p>
+                  <p className="font-black uppercase text-[10px] tracking-widest text-muted-foreground">Invite Pack</p>
+                  <p className="font-bold text-sm text-foreground">Copy Invite Link</p>
                 </div>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -456,70 +403,34 @@ Android - Browser Menu > Add to Homescreen > Install`;
         </DialogContent>
       </Dialog>
 
-      {/* Easter Egg Dialog */}
-      <Dialog
-        open={!!easterEggMessage}
-        onOpenChange={(open) => !open && setEasterEggMessage(null)}
-      >
+      <Dialog open={!!easterEggMessage} onOpenChange={(open) => !open && setEasterEggMessage(null)}>
         <DialogContent className="w-[calc(100%-2.5rem)] max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-transparent">
           <div className="bg-background/95 backdrop-blur-2xl p-8 relative">
-            <Nut3lla
-              message={easterEggMessage}
-              position="center"
-              isDismissible={false}
-              className="w-full"
-            />
+            <Nut3lla message={easterEggMessage} position="center" isDismissible={false} className="w-full" />
             <div className="mt-8">
-              <Button
-                onClick={() => setEasterEggMessage(null)}
-                className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20"
-              >
-                LIGHT WEIGHT BABY! 🦾
-              </Button>
+              <Button onClick={() => setEasterEggMessage(null)} className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20">LIGHT WEIGHT BABY! 🦾</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Streak Dialog */}
       <Dialog open={isStreakDialogOpen} onOpenChange={setIsStreakDialogOpen}>
-        <DialogContent
-          hideClose
-          className="w-[calc(100%-2.5rem)] max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-transparent"
-        >
+        <DialogContent hideClose className="w-[calc(100%-2.5rem)] max-w-[420px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-transparent">
           <div className="bg-background/95 backdrop-blur-2xl p-8 relative flex flex-col items-center">
-            <div className="relative flex justify-center items-center mb-4 w-full">
-              <Nut3lla
-                message={
-                  streak === 0
-                    ? "0 days? You're better than this. Get to work!"
-                    : streak <= 2
-                      ? `Streak of ${streak}. Better than nothing, I guess. Keep going.`
-                      : streak <= 6
-                        ? `${streak} days in a row! Now we're talking. Let's keep the fire burning!`
-                        : `${streak} DAYS! BEAST MODE ACTIVATED! Don't you dare stop now!`
-                }
-                position="center"
-                isDismissible={false}
-                className="w-full relative z-10"
-              />
-            </div>
-
-            <Button
-              onClick={() => setIsStreakDialogOpen(false)}
-              className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20"
-            >
+            <Nut3lla 
+              message={streak === 0 ? "0 days? You're better than this. Get to work!" : `${streak} DAYS! BEAST MODE ACTIVATED!`} 
+              position="center" 
+              isDismissible={false} 
+              className="w-full relative z-10" 
+            />
+            <Button onClick={() => setIsStreakDialogOpen(false)} className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg shadow-primary/20 mt-4">
               {streak === 0 ? "I'LL DO BETTER" : "LET'S GO!"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Off-screen Card for Generation */}
-      <div
-        className="fixed left-[-9999px] top-4 overflow-hidden"
-        style={{ minWidth: "1080px", minHeight: "1920px" }}
-      >
+      <div className="fixed left-[-9999px] top-4 overflow-hidden" style={{ minWidth: "1080px", minHeight: "1920px" }}>
         {(() => {
           const levelInfo = calculateLevel((settings as any)?.total_xp || 0);
           return (
@@ -538,70 +449,30 @@ Android - Browser Menu > Add to Homescreen > Install`;
         })()}
       </div>
 
-      {/* Main Content Area - This is where the scroll happens */}
-      <main className="h-full overflow-y-auto w-full scroll-smooth">
-        <div className="max-w-md mx-auto w-full px-4 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[calc(5rem+env(safe-area-inset-top,0px))]">
-          {children}
-        </div>
-      </main>
-
-      {/* Global Motivational Tip Engine */}
-      <Nut3llaTips />
-
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background pb-[calc(max(1.5rem,env(safe-area-inset-bottom))-10px)] sm:pb-2 gpu-layer"
-        style={{ filter: "drop-shadow(0 -4px 16px rgba(0, 0, 0, 0.1))" }}
+        className="fixed bottom-0 left-0 right-0 w-full bg-background gpu-layer z-50"
+        style={{ 
+          filter: "drop-shadow(0 -4px 16px rgba(0, 0, 0, 0.1))",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) - 10px)"
+        }}
       >
-        <div className="max-w-md mx-auto relative grid grid-cols-5 pt-2">
-          {/* Curved notch extending up from the navbar seamlessly with a deep overlap to seal any sub-pixel gap */}
-          <svg
-            className="absolute left-0 w-full pointer-events-none z-10"
-            style={{ top: "-22px" }}
-            height="26"
-            viewBox="0 0 100 26"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {/* Solid fill matching the nav background perfectly with deep overlap */}
-            <path
-              d="M0,26 L0,21 L30,21 C40,21 40,1 50,1 C60,1 60,21 70,21 L100,21 L100,26 Z"
-              fill="hsl(var(--background))"
-            />
-            {/* The sharp top border stroke */}
-            <path
-              d="M0,21 L30,21 C40,21 40,1 50,1 C60,1 60,21 70,21 L100,21"
-              fill="none"
-              stroke="hsl(var(--border) / 0.4)"
-              strokeWidth="1"
-              vectorEffect="non-scaling-stroke"
-            />
+        <div className="max-w-md mx-auto relative grid grid-cols-5 pt-1 pb-1">
+          <svg className="absolute left-0 w-full pointer-events-none z-10" style={{ top: "-22px" }} height="26" viewBox="0 0 100 26" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0,26 L0,21 L30,21 C40,21 40,1 50,1 C60,1 60,21 70,21 L100,21 L100,26 Z" fill="hsl(var(--background))" />
+            <path d="M0,21 L30,21 C40,21 40,1 50,1 C60,1 60,21 70,21 L100,21" fill="none" stroke="hsl(var(--border) / 0.4)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           </svg>
 
           {leftNav.map(({ path, icon: Icon, label, tour }) => {
             const active = location.pathname === path;
             return (
-              <Link
-                key={path}
-                to={path}
-                data-tour={tour}
-                className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors ${
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
+              <Link key={path} to={path} data-tour={tour} className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
                 <Icon className="h-5 w-5" />
                 <span className="text-[10px] font-medium">{label}</span>
               </Link>
             );
           })}
 
-          {/* Centre Scan Button */}
-          <button
-            onClick={() => navigate("/scan")}
-            className="flex flex-col items-center justify-end pb-1 relative z-20"
-            aria-label="Scan Barcode"
-          >
+          <button onClick={() => navigate("/scan")} className="flex flex-col items-center justify-end pb-1 relative z-20" aria-label="Scan Barcode">
             <div className="-mt-5 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 transition-all active:scale-95 hover:brightness-110">
               <ScanBarcode className="h-6 w-6" />
             </div>
@@ -609,19 +480,9 @@ Android - Browser Menu > Add to Homescreen > Install`;
 
           {rightNav.map(({ path, icon: Icon, label }) => {
             const active = location.pathname === path;
-            const isSettings = label === "Settings";
             return (
-              <Link
-                key={path}
-                to={path}
-                className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors relative ${
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
+              <Link key={path} to={path} className={`flex flex-col items-center gap-0.5 py-1 rounded-lg transition-colors relative ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
                 <Icon className="h-5 w-5" />
-
                 <span className="text-[10px] font-medium">{label}</span>
               </Link>
             );

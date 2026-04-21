@@ -9,7 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut, Bell, Plus, X, Calculator, RefreshCw } from "lucide-react";
+import {
+  LogOut,
+  Bell,
+  Plus,
+  X,
+  Calculator,
+  RefreshCw,
+  ShieldAlert,
+  Loader2,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,6 +38,10 @@ const Profile = () => {
     usePushSubscription();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
 
   const [form, setForm] = useState({
     calorie_target: 2750,
@@ -51,9 +64,11 @@ const Profile = () => {
   const [newSupplementName, setNewSupplementName] = useState("");
 
   useEffect(() => {
-    if (window.location.hash === '#supplements') {
+    if (window.location.hash === "#supplements") {
       setTimeout(() => {
-        document.getElementById('supplements')?.scrollIntoView({ behavior: 'smooth' });
+        document
+          .getElementById("supplements")
+          ?.scrollIntoView({ behavior: "smooth" });
       }, 300);
     }
   }, []);
@@ -113,14 +128,41 @@ const Profile = () => {
     });
   };
 
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    // Add a deliberate 1s delay as requested
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      await signOut();
+      // Force a hard reload to clear all states and redirect
+      window.location.href = "/auth";
+    } catch (e) {
+      window.location.href = "/auth";
+    }
+  };
+
   const handleSave = () => {
+    setSaveStatus("saving");
+    const startTime = Date.now();
+
     updateSettings.mutate(
       {
         ...form,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
       {
-        onSuccess: () => toast({ title: "Settings saved!" }),
+        onSuccess: () => {
+          const elapsed = Date.now() - startTime;
+          const delay = Math.max(0, 800 - elapsed);
+
+          setTimeout(() => {
+            setSaveStatus("saved");
+            setTimeout(() => setSaveStatus("idle"), 2000);
+          }, delay);
+        },
+        onError: () => {
+          setSaveStatus("idle");
+        },
       },
     );
   };
@@ -159,7 +201,7 @@ const Profile = () => {
 
   const handleToggleReminder = async (
     type: "meal_reminders_enabled" | "supp_reminders_enabled",
-    checked: boolean
+    checked: boolean,
   ) => {
     setForm((prev) => ({ ...prev, [type]: checked }));
 
@@ -167,17 +209,19 @@ const Profile = () => {
       if (typeof window !== "undefined" && !window.isSecureContext) {
         toast({
           title: "Local HTTP Blocked 🔒",
-          description: "Apple blocks push notifications on local 'http://' IPs. You can only test this on production (Netlify HTTPS) or via ngrok!",
+          description:
+            "Apple blocks push notifications on local 'http://' IPs. You can only test this on production (Netlify HTTPS) or via ngrok!",
           duration: 8000,
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
-      
+
       if (!isSupported) {
         toast({
           title: "Install Required 📱",
-          description: "Tap the Share icon and 'Add to Home Screen' to enable notifications on this device.",
+          description:
+            "Tap the Share icon and 'Add to Home Screen' to enable notifications on this device.",
           duration: 8000,
         });
         return;
@@ -218,10 +262,25 @@ const Profile = () => {
         </h1>
       </div>
 
-      {/* Account */}
-      <div className="bg-card rounded-xl p-4 space-y-1">
-        <p className="text-sm text-muted-foreground">Signed in as</p>
-        <p className="text-card-foreground font-medium">{user?.email}</p>
+      <div className="bg-card rounded-xl p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">Signed in as</p>
+            <p className="text-card-foreground font-medium truncate">
+              {user?.email}
+            </p>
+          </div>
+          {user?.email === "yuvrajbhardwaj2005yb@gmail.com" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20 font-bold text-[10px] tracking-widest uppercase h-8 shrink-0"
+              onClick={() => navigate("/admin")}
+            >
+              <ShieldAlert className="h-3 w-3 mr-2" /> Admin
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Theme and Nut3lla Tips */}
@@ -420,7 +479,10 @@ const Profile = () => {
       </div>
 
       {/* Supplements Management */}
-      <div id="supplements" className="bg-card rounded-xl p-4 space-y-3 scroll-mt-20">
+      <div
+        id="supplements"
+        className="bg-card rounded-xl p-4 space-y-3 scroll-mt-20"
+      >
         <div>
           <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">
             My Supplements
@@ -498,7 +560,9 @@ const Profile = () => {
             </div>
             <Switch
               checked={form.meal_reminders_enabled}
-              onCheckedChange={(c) => handleToggleReminder("meal_reminders_enabled", c)}
+              onCheckedChange={(c) =>
+                handleToggleReminder("meal_reminders_enabled", c)
+              }
             />
           </div>
 
@@ -513,7 +577,9 @@ const Profile = () => {
             </div>
             <Switch
               checked={form.supp_reminders_enabled}
-              onCheckedChange={(c) => handleToggleReminder("supp_reminders_enabled", c)}
+              onCheckedChange={(c) =>
+                handleToggleReminder("supp_reminders_enabled", c)
+              }
             />
           </div>
 
@@ -536,17 +602,36 @@ const Profile = () => {
               This time is used for your supplement and streak reminders.
             </p>
           </div>
-
         </div>
       </div>
 
-
-      <Button onClick={handleSave} className="w-full">
-        Save Settings
+      <Button
+        onClick={handleSave}
+        className={`w-full transition-all duration-300 ${saveStatus === "saved" ? "bg-green-600 hover:bg-green-600" : ""}`}
+        disabled={saveStatus !== "idle"}
+      >
+        {saveStatus === "saving" && (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        )}
+        {saveStatus === "saving"
+          ? "Saving..."
+          : saveStatus === "saved"
+            ? "Saved!"
+            : "Save Settings"}
       </Button>
 
-      <Button variant="outline" className="w-full" onClick={signOut}>
-        <LogOut className="h-4 w-4" /> Sign Out
+      <Button
+        variant="outline"
+        className="w-full hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
+        onClick={handleSignOut}
+        disabled={isSigningOut}
+      >
+        {isSigningOut ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : (
+          <LogOut className="h-4 w-4 mr-2" />
+        )}
+        {isSigningOut ? "Signing Out..." : "Sign Out"}
       </Button>
     </div>
   );
