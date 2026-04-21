@@ -41,16 +41,6 @@ serve(async (req: Request) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  
-  // Potential manual test trigger
-  let testUserId: string | null = null;
-  let testPayload: any = null;
-  try {
-    const body = await req.json();
-    testUserId = body.test_user_id;
-    testPayload = body.test_payload;
-  } catch (e) { /* normal cron run */ }
-
   const now = new Date();
   
   // 1. Fetch Users & Their Settings
@@ -59,7 +49,7 @@ serve(async (req: Request) => {
     .select('user_id, notification_time, supplements, timezone, meal_reminders_enabled, supp_reminders_enabled');
 
   if (userError || !users) {
-    return new Response(JSON.stringify({ error: 'Failed to fetch users' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Failed to fetch users' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
   // 2. Fetch all Active Subscriptions
@@ -69,7 +59,7 @@ serve(async (req: Request) => {
     
   if (subError) {
     console.error("Sub fetch error:", subError);
-    return new Response(JSON.stringify({ error: 'Failed to fetch subscriptions', details: subError }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Failed to fetch subscriptions', details: subError }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
   // Fast lookup mapping
@@ -83,10 +73,8 @@ serve(async (req: Request) => {
 
   for (const user of users) {
     const userSubs = subMap[user.user_id] || [];
-    if (userSubs.length === 0) continue; // Skip users with no devices
+    if (userSubs.length === 0) continue; 
 
-    const isTestTrigger = testUserId && user.user_id === testUserId;
-    
     // Resolve Time/Date based on user_settings.timezone
     const userTz = user.timezone || 'UTC';
     const nowInUserTz = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
@@ -106,80 +94,54 @@ serve(async (req: Request) => {
       (currentHour === 21 && currentSlot === 30)
     );
 
-    if (!isSuppTime && !isMealTime && !isTestTrigger) continue;
+    if (!isSuppTime && !isMealTime) continue;
 
     let payload = null;
 
-    if (isTestTrigger) {
-      payload = JSON.stringify(testPayload || {
-        title: "Clean Backend Test! 🚀",
-        body: "Your new VAPID push infrastructure is working flawlessly."
+    // Calculate start of day for accurate logging checks
+    const startOfDay = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
+    startOfDay.setHours(0,0,0,0);
+    const isoDate = startOfDay.toISOString().split('T')[0];
+    
+    const { data: log } = await supabase
+      .from('daily_logs')
+      .select('id, creatine_taken, whey_taken, supplements_taken, completed_exercises')
+      .eq('user_id', user.user_id)
+      .eq('date', isoDate)
+      .maybeSingle();
+
+    if (isMealTime) {
+      payload = JSON.stringify({
+        title: "Fuel Reminder 🥩",
+        body: "Check your fuel levels and log your last meal to stay on track!",
+        url: "/"
       });
-    } else {
-      // Calculate start of day for accurate logging checks (Local Midnight -> UTC ISO string)
-      const startOfDay = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
-      startOfDay.setHours(0,0,0,0);
-      const isoDate = startOfDay.toISOString().split('T')[0];
+    } else if (isSuppTime) {
+      // Find what hasn't been taken yet
+      const configSupps = (user.supplements as any[]) || [];
+      const userSuppsTaken = (log?.supplements_taken as Record<string, boolean>) || {};
       
-      const { data: log } = await supabase
-        .from('daily_logs')
-        .select('id, creatine_taken, whey_taken, supplements_taken, completed_exercises')
-        .eq('user_id', user.user_id)
-        .eq('date', isoDate)
-        .maybeSingle(); // Prevents PGRST116 throw if empty!
+      const missing = configSupps
+        .filter(s => s.enabled && !userSuppsTaken[s.id])
+        .map(s => s.name);
 
-      if (isMealTime) {
-        // ... (Meal reminder logic: simplified for brevity, you can adjust meals based on requirements)
-        let mealName = currentHour === 10 ? "breakfast" : (currentHour === 14 ? "lunch" : "dinner");
-        
-        const { count: mealCount } = await supabase
-          .from('meal_entries')
-          .select('*', { count: 'exact', head: true })
-          .eq('daily_log_id', log?.id || '00000000-0000-0000-0000-000000000000');
-
-        let expectedMeals = currentHour === 10 ? 1 : (currentHour === 14 ? 2 : 3);
-        if ((mealCount || 0) < expectedMeals) {
-           payload = JSON.stringify({
-             title: `Time to log ${mealName}? 🍽️`,
-             body: "Keep that streak alive! Don't forget to log your progress."
-           });
-        }
-      }
-
-      if (!payload && isSuppTime) {
-        const taken = log?.supplements_taken || {};
-        const enabled = ((user.supplements || []) as any[]).filter(s => s.enabled);
-        const untaken = enabled.filter(s => !taken[s.id]);
-        
-        if (enabled.some(s => s.id === 'creatine' && !log?.creatine_taken)) untaken.push({ name: 'Creatine' });
-        if (enabled.some(s => s.id === 'whey' && !log?.whey_taken)) untaken.push({ name: 'Whey' });
-
-        const isTotallyInactive = !log && !log?.creatine_taken && !log?.whey_taken && !Object.values(taken).some(v => v);
-
-        if (isTotallyInactive) {
-          payload = JSON.stringify({
-            title: "Don't break your streak! ⚡",
-            body: "You haven't logged anything for today yet. Time to level up?"
-          });
-        } else if (untaken.length > 0) {
-          const names = untaken.map(s => s.name).join(", ");
-          payload = JSON.stringify({
-            title: "Don't forget: " + names,
-            body: "Fuel the engine! Log your supplements for today."
-          });
-        }
+      if (missing.length > 0) {
+        payload = JSON.stringify({
+          title: "Supplements Check 💊",
+          body: `Don't forget your: ${missing.join(', ')}`,
+          url: "/"
+        });
       }
     }
 
-    if (!payload) continue;
-
-    // Fire Away!
-    for (const sub of userSubs) {
-      if (await sendPush(supabase, sub, payload)) {
-        sentCount++;
+    if (payload) {
+      for (const sub of userSubs) {
+        if (await sendPush(supabase, sub, payload)) {
+          sentCount++;
+        }
       }
     }
   }
 
-  return new Response(JSON.stringify({ success: true, sent: sentCount, version: "2.0.0" }), { headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ success: true, sent: sentCount }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 });

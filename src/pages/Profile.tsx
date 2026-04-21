@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { calculateMacros } from "@/lib/calories";
+import { supabase } from "@/integrations/supabase/client";
 
 const Profile = () => {
   const { settings, isLoading, updateSettings } = useSettings();
@@ -221,14 +222,6 @@ const Profile = () => {
       <div className="bg-card rounded-xl p-4 space-y-1">
         <p className="text-sm text-muted-foreground">Signed in as</p>
         <p className="text-card-foreground font-medium">{user?.email}</p>
-        {user?.email === "yuvrajbhardwaj2005yb@gmail.com" && (
-          <Button
-            onClick={() => navigate("/admin")}
-            className="w-full mt-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold border-none shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
-            ADMIN DASHBOARD
-          </Button>
-        )}
       </div>
 
       {/* Theme and Nut3lla Tips */}

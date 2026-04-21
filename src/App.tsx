@@ -29,158 +29,122 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const GlobalSplash = ({ children }: { children: React.ReactNode }) => {
-  const { loading, user } = useAuth();
-  const { settings } = useSettings();
-  const [minSplashDone, setMinSplashDone] = useState(false);
-  const [isFadingOut, setIsFadingOut] = useState(false);
-  const [isUnmounted, setIsUnmounted] = useState(false);
-
-  // Normal splash timer (2.5s)
-  useEffect(() => {
-    const timer = setTimeout(() => setMinSplashDone(true), 2500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // skip splash if tutorial is active
-  useEffect(() => {
-    if (user && settings && settings.tutorial_completed === false) {
-      setMinSplashDone(true);
-      setIsFadingOut(true);
-      setIsUnmounted(true);
-    }
-  }, [user, settings]);
-
-  useEffect(() => {
-    if (!loading && minSplashDone && !isUnmounted) {
-      setIsFadingOut(true);
-      const timer = setTimeout(() => setIsUnmounted(true), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, minSplashDone, isUnmounted]);
+const App = () => {
+  const queryClient = new QueryClient();
 
   return (
-    <>
-      {!isUnmounted && (
-        <div 
-          className={`fixed inset-0 z-[100] flex items-center justify-center bg-background px-4 transition-opacity duration-500 ease-in-out ${isFadingOut ? "opacity-0 pointer-events-none" : "opacity-100"}`}
-        >
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative h-24 w-24">
-              <img
-                src="/fitnutt-logo.png"
-                alt="Loading Up"
-                className="absolute inset-0 h-24 w-24 animate-logo-pump-up"
-              />
-              <img
-                src="/fitnutt-logo-down.png"
-                alt="Loading Down"
-                className="absolute inset-0 h-24 w-24 animate-logo-pump-down"
-              />
-            </div>
-            <h1
-              className="text-2xl font-bold text-foreground animate-pulse"
-              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-            >
-              FitNutt
-            </h1>
-          </div>
-        </div>
-      )}
-      {!loading && children}
-    </>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AppContent />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <GlobalSplash>
-            <BrowserRouter>
-              <DateProvider>
-                <TutorialProvider>
+const AppContent = () => {
+  const { loading } = useAuth();
+  const [minSplashDone, setMinSplashDone] = useState(false);
+
+  useEffect(() => {
+    // Enforce 2.2s minimum splash for premium feel
+    const timer = setTimeout(() => setMinSplashDone(true), 2200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && minSplashDone) {
+      const preloader = document.getElementById("root-preloader");
+      if (preloader) {
+        preloader.classList.add("fade-out");
+        setTimeout(() => preloader.remove(), 600);
+      }
+    }
+  }, [loading, minSplashDone]);
+
+  return (
+    <BrowserRouter>
+      <DateProvider>
+        <TutorialProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="*"
+              element={
+                <Layout>
                   <Routes>
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
                     <Route
-                      path="*"
+                      path="/"
                       element={
-                        <Layout>
-                          <Routes>
-                            <Route
-                              path="/"
-                              element={
-                                <ProtectedRoute>
-                                  <Index />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/foods"
-                              element={
-                                <ProtectedRoute>
-                                  <FoodLibrary />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/schedule"
-                              element={
-                                <ProtectedRoute>
-                                  <Schedule />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/profile"
-                              element={
-                                <ProtectedRoute>
-                                  <Profile />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/admin"
-                              element={
-                                <ProtectedRoute>
-                                  <Admin />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/pump-rank"
-                              element={
-                                <ProtectedRoute>
-                                  <PumpRank />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route
-                              path="/scan"
-                              element={
-                                <ProtectedRoute>
-                                  <BarcodeScanner />
-                                </ProtectedRoute>
-                              }
-                            />
-                            <Route path="*" element={<NotFound />} />
-                          </Routes>
-                        </Layout>
+                        <ProtectedRoute>
+                          <Index />
+                        </ProtectedRoute>
                       }
                     />
+                    <Route
+                      path="/foods"
+                      element={
+                        <ProtectedRoute>
+                          <FoodLibrary />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/schedule"
+                      element={
+                        <ProtectedRoute>
+                          <Schedule />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin"
+                      element={
+                        <ProtectedRoute>
+                          <Admin />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/pump-rank"
+                      element={
+                        <ProtectedRoute>
+                          <PumpRank />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/scan"
+                      element={
+                        <ProtectedRoute>
+                          <BarcodeScanner />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
-                </TutorialProvider>
-              </DateProvider>
-            </BrowserRouter>
-          </GlobalSplash>
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+                </Layout>
+              }
+            />
+          </Routes>
+        </TutorialProvider>
+      </DateProvider>
+    </BrowserRouter>
+  );
+};
 
 export default App;

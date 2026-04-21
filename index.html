@@ -8,6 +8,10 @@
     <meta name="theme-color" content="#EA5C1F" />
     <link rel="icon" href="/fitnutt-logo.png" />
     <link rel="apple-touch-icon" href="/fitnutt-logo.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FitNutt" />
     <link rel="preload" as="image" href="/fitnutt-logo.png" />
     <link rel="preload" as="image" href="/fitnutt-logo-down.png" />
 
@@ -22,7 +26,8 @@
     <meta name="twitter:image" content="/fitnutt-logo.png" />
     <style>
       body { margin: 0; }
-      #root-preloader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #root-preloader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.6s ease-out, visibility 0.6s; background-color: inherit; }
+      #root-preloader.fade-out { opacity: 0; visibility: hidden; }
       .pre-logo { position: relative; height: 6rem; width: 6rem; margin-bottom: 1rem; }
       .pre-logo img { position: absolute; inset: 0; height: 100%; width: 100%; }
       .pre-logo img:nth-child(1) { animation: pre-pump-up 1s infinite; }
@@ -53,16 +58,16 @@
     </script>
   </head>
   <body>
-    <div id="root">
-      <!-- App Shell Preloader: Renders instantly on network request before React downloads -->
-      <div id="root-preloader">
-        <div class="pre-content">
-          <div class="pre-logo">
-            <img src="/fitnutt-logo.png" alt="Loading Up" />
-            <img src="/fitnutt-logo-down.png" alt="Loading Down" />
-          </div>
-          <h1 class="pre-text">FitNutt</h1>
+    <div id="root"></div>
+
+    <!-- App Shell Preloader: Renders instantly on network request above the React root -->
+    <div id="root-preloader">
+      <div class="pre-content">
+        <div class="pre-logo">
+          <img src="/fitnutt-logo.png" alt="Loading Up" />
+          <img src="/fitnutt-logo-down.png" alt="Loading Down" />
         </div>
+        <h1 class="pre-text">FitNutt</h1>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

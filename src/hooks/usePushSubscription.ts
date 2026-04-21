@@ -30,14 +30,40 @@ function isIosSafariBrowserTab(): boolean {
   return isIos && !isStandalonePWA();
 }
 
-/** serviceWorker.ready with a timeout so it doesn't hang forever on iOS first-launch */
-function serviceWorkerReadyWithTimeout(ms = 10000): Promise<ServiceWorkerRegistration> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("Service worker took too long to become ready (>10s). Try closing and reopening the app from your Home Screen.")), ms);
-    navigator.serviceWorker.ready.then((reg) => {
+/** Robust serviceWorker resolution for iOS */
+async function getActiveServiceWorker(ms = 10000): Promise<ServiceWorkerRegistration> {
+  return new Promise(async (resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Service worker took too long to become ready (>10s). SW might be stuck installing."));
+    }, ms);
+
+    try {
+      // Check current registration state instantly
+      let reg = await navigator.serviceWorker.getRegistration();
+      
+      if (!reg) {
+        // Force manual registration if Vite plugin failed for some reason
+        console.warn("No SW registration found! Forcing manual registration...");
+        reg = await navigator.serviceWorker.register(
+           import.meta.env.DEV ? '/dev-sw.js?dev-sw' : '/sw.js'
+        );
+      }
+
+      if (reg && reg.active) {
+        clearTimeout(timer);
+        return resolve(reg);
+      }
+
+      // If registered but not active, wait for .ready or state changes
+      navigator.serviceWorker.ready.then((readyReg) => {
+        clearTimeout(timer);
+        resolve(readyReg);
+      }).catch(reject);
+
+    } catch (err) {
       clearTimeout(timer);
-      resolve(reg);
-    }).catch(reject);
+      reject(err);
+    }
   });
 }
 
@@ -80,10 +106,17 @@ export const usePushSubscription = () => {
         return { ok: false, step: "config", error: "Missing VAPID Key — build env var VITE_VAPID_PUBLIC_KEY not set" };
       }
 
-      // 3. Get active service worker registration (with iOS-safe timeout)
-      const reg = await serviceWorkerReadyWithTimeout(10000);
+      // 3. Get active service worker registration (robust)
+      const reg = await getActiveServiceWorker(10000);
       
-      // 4. Robust Subscription
+      // 4. Force Unsubscribe old session to clear VapidPkHashMismatch
+      const existingSub = await reg.pushManager.getSubscription();
+      if (existingSub) {
+        console.log("Stale subscription found. Nuking it to prevent VAPID Hash Mismatch...");
+        await existingSub.unsubscribe();
+      }
+
+      // 5. Robust Subscription
       // Using Uint8Array directly (without .buffer) is more reliable on iOS Safari
       const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       

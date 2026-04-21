@@ -366,7 +366,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
       {showInvite && !isActive && <TutorialInvite />}
 
       {/* Glassy Top Nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer">
+      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-2">
             <AnimatedLogo className="h-8 w-8" onToggle={handleLogoToggle} />
@@ -540,7 +540,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
 
       {/* Main Content Area - This is where the scroll happens */}
       <main className="h-full overflow-y-auto w-full scroll-smooth">
-        <div className="max-w-md mx-auto w-full px-4 pt-20 pb-[calc(8rem+env(safe-area-inset-bottom))]">
+        <div className="max-w-md mx-auto w-full px-4 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-[calc(5rem+env(safe-area-inset-top,0px))]">
           {children}
         </div>
       </main>
