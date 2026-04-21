@@ -13,6 +13,34 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+/** Returns true only if we are running as an installed PWA (standalone mode).
+ *  On iOS this is the ONLY context where push subscriptions are allowed. */
+function isStandalonePWA(): boolean {
+  // iOS-specific property
+  if ((navigator as any).standalone === true) return true;
+  // Standard CSS media query (works on Android/desktop too)
+  if (window.matchMedia("(display-mode: standalone)").matches) return true;
+  return false;
+}
+
+/** True if the device appears to be iOS Safari in a regular browser tab */
+function isIosSafariBrowserTab(): boolean {
+  const ua = navigator.userAgent;
+  const isIos = /iP(hone|ad|od)/.test(ua);
+  return isIos && !isStandalonePWA();
+}
+
+/** serviceWorker.ready with a timeout so it doesn't hang forever on iOS first-launch */
+function serviceWorkerReadyWithTimeout(ms = 10000): Promise<ServiceWorkerRegistration> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Service worker took too long to become ready (>10s). Try closing and reopening the app from your Home Screen.")), ms);
+    navigator.serviceWorker.ready.then((reg) => {
+      clearTimeout(timer);
+      resolve(reg);
+    }).catch(reject);
+  });
+}
+
 export const usePushSubscription = () => {
   const { user } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -20,7 +48,10 @@ export const usePushSubscription = () => {
   const [permission, setPermission] = useState<NotificationPermission>("default");
 
   useEffect(() => {
-    const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    // APIs existing is not enough — on iOS they exist in-browser but subscriptions require standalone mode
+    const hasApis = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    // Only report as supported when actually usable
+    const supported = hasApis && !isIosSafariBrowserTab();
     setIsSupported(supported);
     if (supported) {
       setPermission(Notification.permission);
@@ -41,19 +72,18 @@ export const usePushSubscription = () => {
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm !== "granted") {
-        alert("Notification Permission Denied: " + perm);
         return { ok: false, step: "permission", error: `Permission result: ${perm}` };
       }
 
       // 2. Safeguard VAPID Key
       if (!VAPID_PUBLIC_KEY) {
-        alert("CRITICAL ERROR: VITE_VAPID_PUBLIC_KEY is not defined in the production build!");
-        return { ok: false, step: "config", error: "Missing VAPID Key" };
+        return { ok: false, step: "config", error: "Missing VAPID Key — build env var VITE_VAPID_PUBLIC_KEY not set" };
       }
 
-      const reg = await navigator.serviceWorker.ready;
+      // 3. Get active service worker registration (with iOS-safe timeout)
+      const reg = await serviceWorkerReadyWithTimeout(10000);
       
-      // 3. Robust Subscription
+      // 4. Robust Subscription
       // Using Uint8Array directly (without .buffer) is more reliable on iOS Safari
       const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       
@@ -67,7 +97,7 @@ export const usePushSubscription = () => {
         throw new Error("Push subscription returned invalid/empty keys");
       }
 
-      // 4. Database Sync
+      // 5. Database Sync
       const { error } = await supabase.from("push_subscriptions").upsert(
         {
           user_id: user.id,
@@ -79,15 +109,13 @@ export const usePushSubscription = () => {
       );
 
       if (error) {
-        alert("Database Sync Failed: " + error.message);
         return { ok: false, step: "db-save", error: error.message };
       }
 
       setIsSubscribed(true);
-      return { ok: true, version: "2.0.0" };
+      return { ok: true, version: "2.1.0" };
     } catch (err: any) {
       const msg = err?.message || String(err);
-      alert("Push Registration Error: " + msg);
       console.error("Push subscription error:", err);
       return { ok: false, step: "exception", error: msg };
     }

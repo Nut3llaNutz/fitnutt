@@ -43,11 +43,19 @@ const Profile = () => {
     activity_level: 1.2,
     goal: "bulk",
     meal_reminders_enabled: false,
-    supp_reminders_enabled: true,
+    supp_reminders_enabled: false,
   });
 
   const [supplements, setSupplements] = useState<Supplement[]>([]);
   const [newSupplementName, setNewSupplementName] = useState("");
+
+  useEffect(() => {
+    if (window.location.hash === '#supplements') {
+      setTimeout(() => {
+        document.getElementById('supplements')?.scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+    }
+  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -70,8 +78,10 @@ const Profile = () => {
         activity_level: Number(settings.activity_level) || 1.2,
         // @ts-ignore
         goal: settings.goal || "bulk",
+        // @ts-ignore
         meal_reminders_enabled: settings.meal_reminders_enabled ?? false,
-        supp_reminders_enabled: settings.supp_reminders_enabled ?? true,
+        // @ts-ignore
+        supp_reminders_enabled: settings.supp_reminders_enabled ?? false,
       });
       setSupplements((settings.supplements as unknown as Supplement[]) || []);
     }
@@ -174,7 +184,7 @@ const Profile = () => {
 
       const result = await subscribe();
       if (result.ok) {
-        toast({ title: "Notifications enabled v2.0! 🔔" });
+        toast({ title: "Notifications enabled! 🔔" });
       } else {
         toast({
           title: `Subscribe failed at: ${result.step}`,
@@ -417,7 +427,7 @@ const Profile = () => {
       </div>
 
       {/* Supplements Management */}
-      <div className="bg-card rounded-xl p-4 space-y-3">
+      <div id="supplements" className="bg-card rounded-xl p-4 space-y-3 scroll-mt-20">
         <div>
           <h2 className="text-sm font-semibold text-card-foreground uppercase tracking-wide">
             My Supplements

@@ -57,7 +57,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
   const { isActive, showInvite } = useTutorial();
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -65,7 +65,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [easterEggMessage, setEasterEggMessage] = useState<string | null>(null);
   const [isStreakDialogOpen, setIsStreakDialogOpen] = useState(false);
-  const [showGuestStreakPrompt, setShowGuestStreakPrompt] = useState(false);
+
   const cardRef = useRef<HTMLDivElement>(null);
 
   const displayDate = globalDate || getTodayStr();
@@ -92,28 +92,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     preloadLogo();
   }, []);
 
-  // Guest Session Tracking
-  useEffect(() => {
-    if (isGuest) {
-      const trackGuest = async () => {
-        let fingerprint = localStorage.getItem("fitnutt_guest_id");
-        if (!fingerprint) {
-          fingerprint = crypto.randomUUID();
-          localStorage.setItem("fitnutt_guest_id", fingerprint);
-        }
 
-        // Use a session-length key to only ping once per browser load
-        const sessionPinged = sessionStorage.getItem("guest_ping_done");
-        if (!sessionPinged) {
-          await supabase.rpc("track_guest_session", {
-            p_fingerprint: fingerprint,
-          });
-          sessionStorage.setItem("guest_ping_done", "true");
-        }
-      };
-      trackGuest();
-    }
-  }, [isGuest]);
 
   const totals = entries.reduce(
     (acc, entry) => ({
@@ -385,13 +364,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
       <div className="fixed inset-0 bg-background -z-[50]" />
       {isActive && <TutorialOverlay />}
       {showInvite && !isActive && <TutorialInvite />}
-      {/* Guest Streak Prompt */}
-      {showGuestStreakPrompt && (
-        <Nut3llaPrompt
-          description="Streaks are serious business! Join the Nut3lla Protocol (Sign Up) to prove you're not just a tourist and starting tracking your legacy! 📈💪"
-          onClose={() => setShowGuestStreakPrompt(false)}
-        />
-      )}
+
       {/* Glassy Top Nav */}
       <header className="fixed top-0 left-0 right-0 z-50 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all gpu-layer">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between pointer-events-auto">
@@ -408,11 +381,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
             <button
               data-tour="streak-btn"
               onClick={() => {
-                if (isGuest) {
-                  setShowGuestStreakPrompt(true);
-                } else {
-                  setIsStreakDialogOpen(true);
-                }
+                setIsStreakDialogOpen(true);
               }}
               className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-colors"
             >
@@ -652,12 +621,7 @@ Android - Browser Menu > Add to Homescreen > Install`;
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                {isSettings && isGuest && (
-                  <span className="absolute top-1 right-5 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
-                )}
+
                 <span className="text-[10px] font-medium">{label}</span>
               </Link>
             );

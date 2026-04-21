@@ -23,9 +23,9 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children, allowGuest = false }: { children: React.ReactNode, allowGuest?: boolean }) => {
-  const { user, isGuest } = useAuth();
-  if (!user && !allowGuest) return <Navigate to="/auth" replace />;
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 };
 
@@ -114,7 +114,7 @@ const App = () => (
                             <Route
                               path="/"
                               element={
-                                <ProtectedRoute allowGuest>
+                                <ProtectedRoute>
                                   <Index />
                                 </ProtectedRoute>
                               }
@@ -122,7 +122,7 @@ const App = () => (
                             <Route
                               path="/foods"
                               element={
-                                <ProtectedRoute allowGuest>
+                                <ProtectedRoute>
                                   <FoodLibrary />
                                 </ProtectedRoute>
                               }
@@ -130,7 +130,7 @@ const App = () => (
                             <Route
                               path="/schedule"
                               element={
-                                <ProtectedRoute allowGuest>
+                                <ProtectedRoute>
                                   <Schedule />
                                 </ProtectedRoute>
                               }
@@ -154,7 +154,7 @@ const App = () => (
                             <Route
                               path="/pump-rank"
                               element={
-                                <ProtectedRoute allowGuest>
+                                <ProtectedRoute>
                                   <PumpRank />
                                 </ProtectedRoute>
                               }
@@ -162,7 +162,7 @@ const App = () => (
                             <Route
                               path="/scan"
                               element={
-                                <ProtectedRoute allowGuest>
+                                <ProtectedRoute>
                                   <BarcodeScanner />
                                 </ProtectedRoute>
                               }

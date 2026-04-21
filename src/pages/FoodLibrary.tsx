@@ -63,7 +63,7 @@ const Fuel = () => {
   const { log, ensureLog } = useDailyLog(currentDate);
   const { addEntry } = useMealEntries(log?.id);
   const { toast } = useToast();
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -77,7 +77,6 @@ const Fuel = () => {
     () => localStorage.getItem("diet_preference") !== "non-veg",
   );
 
-  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   const [loggingFood, setLoggingFood] = useState<Food | null>(null);
   const [logForm, setLogForm] = useState({
     quantity: "1",
@@ -254,7 +253,7 @@ const Fuel = () => {
         <Button
           size="icon"
           variant="outline"
-          onClick={() => (isGuest ? setShowGuestPrompt(true) : openAdd())}
+          onClick={() => openAdd()}
           className="h-9 w-9 rounded-xl border-primary/20 bg-background/50 backdrop-blur-sm transition-all active:scale-95 shadow-lg shadow-black/5 text-primary"
         >
           <Plus className="h-4 w-4" />
@@ -360,13 +359,8 @@ const Fuel = () => {
                   </button>
                   <button
                     onClick={(e) => {
-                      if (isGuest) {
-                        e.stopPropagation();
-                        setShowGuestPrompt(true);
-                      } else {
-                        e.stopPropagation();
-                        openEdit(f);
-                      }
+                      e.stopPropagation();
+                      openEdit(f);
                     }}
                     className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
                   >
@@ -640,12 +634,7 @@ const Fuel = () => {
         </DialogContent>
       </Dialog>
 
-      {showGuestPrompt && (
-        <Nut3llaPrompt
-          description="Loggin' pre-built fuels is fine, but if you want to create your own custom kitchen, you'll need to join the Nut3lla Protocol."
-          onClose={() => setShowGuestPrompt(false)}
-        />
-      )}
+
     </div>
   );
 };

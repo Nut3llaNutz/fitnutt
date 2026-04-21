@@ -25,8 +25,6 @@ const BarcodeScanner = () => {
   const navigate = useNavigate();
   const { addFood } = useFoods();
   const { toast } = useToast();
-  const { isGuest } = useAuth();
-  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scanState, setScanState] = useState<ScanState>("scanning");
@@ -133,10 +131,6 @@ const BarcodeScanner = () => {
   }, []);
 
   const handleSave = () => {
-    if (isGuest) {
-      setShowGuestPrompt(true);
-      return;
-    }
 
     addFood.mutate(
       {
@@ -347,12 +341,7 @@ const BarcodeScanner = () => {
         )}
       </main>
 
-      {showGuestPrompt && (
-        <Nut3llaPrompt 
-          description="You can scan anything to check its fuel content, but to save it to your permanent library, you'll need to join the Nut3lla Protocol."
-          onClose={() => setShowGuestPrompt(false)}
-        />
-      )}
+
     </div>
   );
 };

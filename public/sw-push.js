@@ -1,4 +1,15 @@
 // Push notification service worker handler
+
+// iOS fix: take control of the page immediately upon activation
+// Without this, navigator.serviceWorker.ready can hang on iOS first-launch
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let data = { title: "FitNutt", body: "Supplement reminder!", icon: "/fitnutt-logo.png", url: "/" };
   try {

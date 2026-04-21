@@ -21,15 +21,6 @@ const RANK_LEVELS = [
 
 const PumpRank = () => {
   const { settings } = useSettings();
-  const { isGuest } = useAuth();
-  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
-
-  useEffect(() => {
-    if (isGuest) {
-      const timer = setTimeout(() => setShowGuestPrompt(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isGuest]);
 
   // @ts-ignore
   const levelInfo = calculateLevel(settings?.total_xp || 0);
@@ -118,16 +109,7 @@ const PumpRank = () => {
           </div>
         </div>
       
-      {showGuestPrompt && (
-        <div id="rank-guest-popup">
-          <Nut3llaPrompt 
-            title="Become a Legend"
-            description="You can view the ladder as a guest, but to climb it and earn your spot in the GOD OF IRON rank, you must join the Protocol."
-            actionText="Start Your Journey"
-            onClose={() => setShowGuestPrompt(false)}
-          />
-        </div>
-      )}
+
     </div>
   );
 };

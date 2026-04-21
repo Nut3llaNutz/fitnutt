@@ -31,10 +31,7 @@ const Schedule = () => {
   const currentDayName = days[todayIndex];
   const [selected, setSelected] = useState(days[todayIndex]);
   const [editMode, setEditMode] = useState(false);
-  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   const [newExercise, setNewExercise] = useState({ name: "", sets: "" });
-
-  const { isGuest } = useAuth();
 
   const {
     schedule,
@@ -99,11 +96,7 @@ const Schedule = () => {
             size="icon"
             variant="outline"
             onClick={() => {
-              if (isGuest) {
-                setShowGuestPrompt(true);
-              } else {
-                setEditMode(!editMode);
-              }
+              setEditMode(!editMode);
             }}
             className="h-9 w-9 rounded-xl border-primary/20 bg-background/50 backdrop-blur-sm transition-all active:scale-95 shadow-lg shadow-black/5 text-primary"
           >
@@ -283,12 +276,7 @@ const Schedule = () => {
         </div>
       </div>
 
-      {showGuestPrompt && (
-        <Nut3llaPrompt
-          description="Followin' the protocol is smart, but customize your own path requires you to be a Resident. Sign up to save your own custom routines."
-          onClose={() => setShowGuestPrompt(false)}
-        />
-      )}
+
     </div>
   );
 };

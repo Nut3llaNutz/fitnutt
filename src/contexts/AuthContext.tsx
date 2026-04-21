@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  /** @deprecated Always false — all routes require auth. */
   isGuest: boolean;
   loading: boolean;
   setIsAuthenticating: (val: boolean) => void;
@@ -14,7 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
-  isGuest: true,
+  isGuest: false,
   loading: true,
   setIsAuthenticating: () => {},
   signOut: async () => {},
@@ -51,8 +52,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AuthContext.Provider value={{ 
       session, 
-      user: session?.user ?? null, 
-      isGuest: !loading && !session?.user,
+      user: session?.user ?? null,
+      isGuest: false, // always false — all routes now require login
       loading: loading || isAuthenticating, 
       setIsAuthenticating, 
       signOut 

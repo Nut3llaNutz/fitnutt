@@ -190,10 +190,10 @@ const Admin = () => {
             {/* Summary Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: "Residents", val: stats?.summary.total_users, sub: `${stats?.summary.active_residents_today} Active Today`, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-                { label: "Guests Today", val: stats?.summary.active_guests_today, sub: `${stats?.summary.total_guests_ever} Overall`, icon: Activity, color: "text-green-500", bg: "bg-green-500/10" },
-                { label: "Fuel Logged", val: stats?.summary.total_logs_all_time, sub: `${stats?.summary.total_logs_today} Today`, icon: Utensils, color: "text-amber-500", bg: "bg-amber-500/10" },
-                { label: "Kcal Logged", val: Math.round(stats?.summary.total_calories_all_time || 0).toLocaleString(), sub: `${Math.round(stats?.summary.total_calories_today || 0).toLocaleString()} today`, icon: Flame, color: "text-red-500", bg: "bg-red-500/10" },
+                { label: "Residents", val: stats?.summary?.total_users, sub: `${stats?.summary?.active_residents_today || 0} Active Today`, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+                { label: "Guests Today", val: stats?.summary?.active_guests_today, sub: `${stats?.summary?.total_guests_ever || 0} Overall`, icon: Activity, color: "text-green-500", bg: "bg-green-500/10" },
+                { label: "Fuel Logged", val: stats?.summary?.total_logs_all_time, sub: `${stats?.summary?.total_logs_today || 0} Today`, icon: Utensils, color: "text-amber-500", bg: "bg-amber-500/10" },
+                { label: "Kcal Logged", val: Math.round(stats?.summary?.total_calories_all_time || 0).toLocaleString(), sub: `${Math.round(stats?.summary?.total_calories_today || 0).toLocaleString()} today`, icon: Flame, color: "text-red-500", bg: "bg-red-500/10" },
               ].map((s, i) => (
                 <Card key={i} className="p-4 border-border bg-card/40 flex flex-col gap-2 relative overflow-hidden">
                   <div className="relative z-10 flex flex-col gap-2">
@@ -223,7 +223,7 @@ const Admin = () => {
                 </div>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats?.trends}>
+                    <AreaChart data={stats?.trends || []}>
                       <defs>
                         <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -272,15 +272,15 @@ const Admin = () => {
                   <Utensils className="h-4 w-4 text-primary" /> Trending Fuel
                 </h3>
                 <div className="space-y-4">
-                  {stats?.top_items.length ? stats.top_items.map((item, i) => (
+                  {stats?.top_items?.length ? stats.top_items.map((item, i) => (
                     <div key={i} className="flex items-center justify-between group">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center text-[10px] font-bold">#{i+1}</div>
                         <span className="text-sm font-medium text-foreground/80 truncate max-w-[150px]">
-                          {item.name || "Unknown Fuel"}
+                          {item?.name || "Unknown Fuel"}
                         </span>
                       </div>
-                      <span className="text-xs font-black text-primary group-hover:translate-x-1 transition-transform">{item.count} logs</span>
+                      <span className="text-xs font-black text-primary group-hover:translate-x-1 transition-transform">{item?.count || 0} logs</span>
                     </div>
                   )) : (
                     <p className="text-xs text-muted-foreground italic text-center py-10">No data found</p>
@@ -299,7 +299,7 @@ const Admin = () => {
               </div>
               <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats?.ranks}>
+                  <BarChart data={stats?.ranks || []}>
                     <XAxis 
                       dataKey="rank" 
                       axisLine={false} 
@@ -308,7 +308,7 @@ const Admin = () => {
                     />
                     <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: 'none', borderRadius: '12px' }} />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                      {stats?.ranks.map((entry, index) => (
+                      {(stats?.ranks || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={index === 0 ? 'hsl(var(--primary))' : 'rgba(255,255,255,0.1)'} />
                       ))}
                     </Bar>

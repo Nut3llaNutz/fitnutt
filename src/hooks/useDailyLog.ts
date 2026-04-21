@@ -7,7 +7,7 @@ import { getTodayStr } from "@/lib/dateUtils";
 
 
 export const useDailyLog = (date?: string) => {
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { addXP } = useSettings();
   const d = date || getTodayStr();
@@ -16,12 +16,6 @@ export const useDailyLog = (date?: string) => {
     queryKey: ["daily_log", user?.id || "guest", d],
     enabled: true,
     queryFn: async () => {
-      if (isGuest) {
-        const local = localStorage.getItem("fitnutt_guest_logs");
-        const allLogs: any[] = local ? JSON.parse(local) : [];
-        return allLogs.find(l => l.date === d) || null;
-      }
-
       if (!user) return null;
 
       const { data, error } = await supabase
@@ -38,27 +32,6 @@ export const useDailyLog = (date?: string) => {
   const ensureLog = async () => {
     if (logQuery.data) return logQuery.data;
 
-    if (isGuest) {
-      const local = localStorage.getItem("fitnutt_guest_logs");
-      const allLogs: any[] = local ? JSON.parse(local) : [];
-      let log = allLogs.find(l => l.date === d);
-      if (!log) {
-        log = {
-          id: crypto.randomUUID(),
-          date: d,
-          user_id: "guest",
-          creatine_taken: false,
-          whey_taken: false,
-          supplements_taken: {},
-          completed_exercises: [],
-        };
-        allLogs.push(log);
-        localStorage.setItem("fitnutt_guest_logs", JSON.stringify(allLogs));
-        queryClient.invalidateQueries({ queryKey: ["daily_log", "guest", d] });
-      }
-      return log;
-    }
-
     const { data, error } = await supabase
       .from("daily_logs")
       .upsert({ user_id: user!.id, date: d }, { onConflict: "user_id,date" })
@@ -69,30 +42,16 @@ export const useDailyLog = (date?: string) => {
     return data;
   };
 
-  const updateGuestLog = (logId: string, updates: any) => {
-    const local = localStorage.getItem("fitnutt_guest_logs");
-    const allLogs: any[] = local ? JSON.parse(local) : [];
-    const index = allLogs.findIndex(l => l.id === logId);
-    if (index > -1) {
-      allLogs[index] = { ...allLogs[index], ...updates };
-      localStorage.setItem("fitnutt_guest_logs", JSON.stringify(allLogs));
-    }
-  };
-
   const toggleSupplement = useMutation({
     mutationFn: async (field: "creatine_taken" | "whey_taken") => {
       const log = await ensureLog();
       const isNowTaken = !(log as any)[field];
       
-      if (isGuest) {
-        updateGuestLog(log.id, { [field]: isNowTaken });
-      } else {
-        const { error } = await supabase
-          .from("daily_logs")
-          .update({ [field]: isNowTaken })
-          .eq("id", log.id);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from("daily_logs")
+        .update({ [field]: isNowTaken })
+        .eq("id", log.id);
+      if (error) throw error;
 
       // Award or remove XP
       await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
@@ -110,15 +69,11 @@ export const useDailyLog = (date?: string) => {
       const isNowTaken = !taken[supplementId];
       const newTaken = { ...taken, [supplementId]: isNowTaken };
       
-      if (isGuest) {
-        updateGuestLog(log.id, { supplements_taken: newTaken });
-      } else {
-        const { error } = await supabase
-          .from("daily_logs")
-          .update({ supplements_taken: newTaken } as any)
-          .eq("id", log.id);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from("daily_logs")
+        .update({ supplements_taken: newTaken } as any)
+        .eq("id", log.id);
+      if (error) throw error;
 
       // Award or remove XP
       await addXP.mutateAsync(isNowTaken ? XP_REWARDS.LOG_SUPPLEMENT : -XP_REWARDS.LOG_SUPPLEMENT);
@@ -139,16 +94,12 @@ export const useDailyLog = (date?: string) => {
         ? completed.filter(n => n !== exerciseName)
         : [...completed, exerciseName];
 
-      if (isGuest) {
-        updateGuestLog(log.id, { completed_exercises: newCompleted });
-      } else {
-        const { error } = await supabase
-          .from("daily_logs")
-          .update({ completed_exercises: newCompleted } as any)
-          .eq("id", log.id);
+      const { error } = await supabase
+        .from("daily_logs")
+        .update({ completed_exercises: newCompleted } as any)
+        .eq("id", log.id);
 
-        if (error) throw error;
-      }
+      if (error) throw error;
       
       // Award or remove XP
       await addXP.mutateAsync(isDone ? -XP_REWARDS.COMPLETE_EXERCISE : XP_REWARDS.COMPLETE_EXERCISE);

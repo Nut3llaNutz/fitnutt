@@ -17,11 +17,10 @@ const TutorialContext = createContext<TutorialContextType | undefined>(undefined
 
 export const TutorialProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
-  const { loading: authLoading, isGuest } = useAuth();
+  const { loading: authLoading } = useAuth();
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   
-  // Guests ALWAYS see the prompt on refresh. Logged-in users rely strictly on their db settings.
-  const alreadyDone = isGuest ? false : !!settings?.tutorial_completed;
+  const alreadyDone = !!settings?.tutorial_completed || localStorage.getItem("fitnutt_tutorial_completed") === "true";
 
   const [isActive, setIsActive] = useState(false);
   const [chapter, setChapter] = useState(0);
@@ -41,19 +40,16 @@ export const TutorialProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   const completeTutorial = useCallback(() => {
+    localStorage.setItem("fitnutt_tutorial_completed", "true");
     updateSettings.mutate({ tutorial_completed: true });
     setIsActive(false);
     setChapter(0);
-    setInviteDismissed(true); // Keep it away for this session!
+    setInviteDismissed(true);
   }, [updateSettings]);
 
   const dismissInvite = useCallback(() => {
     setInviteDismissed(true);
-    if (!isGuest) {
-      // If a logged-in user clicks 'X', they permanently skip the tour on all their devices!
-      updateSettings.mutate({ tutorial_completed: true });
-    }
-  }, [isGuest, updateSettings]);
+  }, []);
 
   return (
     <TutorialContext.Provider value={{

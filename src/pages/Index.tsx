@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useDate } from "@/contexts/DateContext";
 import { getTodayStr, formatLocalDate, parseLocalDate } from "@/lib/dateUtils";
+import { useNavigate } from "react-router-dom";
 
 import { useDailyLog } from "@/hooks/useDailyLog";
 import { useMealEntries } from "@/hooks/useMealEntries";
@@ -63,6 +64,7 @@ const Index = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [expandedMacro, setExpandedMacro] = useState<string | null>(null);
   const [showCopy, setShowCopy] = useState(false);
@@ -283,10 +285,10 @@ const Index = () => {
           <PumpLevelCard />
         </div>
 
-        {enabledSupplements.length > 0 && (
-          <div className="bg-card rounded-xl p-4 space-y-3 shadow-md border border-primary/5">
-            <h2 className="text-xs font-bold text-primary uppercase tracking-[0.2em]">Supplements</h2>
-            {enabledSupplements.map((s) => (
+        <div className="bg-card rounded-xl p-4 space-y-3 shadow-md border border-primary/5">
+          <h2 className="text-xs font-bold text-primary uppercase tracking-[0.2em]">Supplements</h2>
+          {enabledSupplements.length > 0 ? (
+            enabledSupplements.map((s) => (
               <div key={s.id} className="flex items-center justify-between">
                 <span className="text-card-foreground font-medium">{s.name}</span>
                 <button
@@ -300,9 +302,21 @@ const Index = () => {
                   <Check strokeWidth={3.5} className={`h-4 w-4 transition-transform duration-300 ${supplementsTaken[s.id] ? "scale-100" : "scale-0"}`} />
                 </button>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          ) : (
+            <div className="text-center py-2 space-y-3">
+              <p className="text-xs text-muted-foreground italic">No supplements tracked.</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/profile#supplements')}
+                className="w-full text-xs font-black uppercase tracking-widest text-primary hover:text-primary transition-all active:scale-95 border-primary/20 bg-primary/5 hover:bg-primary/10"
+              >
+                Set Up Reminders
+              </Button>
+            </div>
+          )}
+        </div>
 
         <div className="space-y-4 pb-4" data-tour="meal-log">
           <h2 className="text-xs font-bold text-primary uppercase tracking-[0.2em] px-1">Fuel Timeline</h2>
